@@ -5,9 +5,6 @@ if [ "$(id -u)" -ne 0 ]; then
         exit 1
 fi
 
-# Для AMDGPU
-grubby --update-kernel=ALL --args=rd.driver.pre=amdgpu
-
 # Для Realtek RTL8821CE
 echo "options rtw88_core disable_lps_deep=y" >> /etc/modprobe.d/rtw88.conf
 
