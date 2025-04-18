@@ -9,20 +9,20 @@ sudo pacman -S bash-completion tree less nano
 ## Настраиваем локаль
 
 ```shell
-sudo localectl set-x11-keymap us,ru pc105 "" grp:caps_toggle
+sudo localectl set-x11-keymap us,ru pc105+inet "" grp:caps_toggle
 sudo bash -c 'echo "FONT=cyr-sun16" >> /etc/vconsole.conf'
 ```
 
 ## Настраиваем базовые шрифты
 
 ```shell
-sudo pacman -S ttf-dejavu ttf-liberation noto-fonts-cjk noto-fonts-emoji
+sudo pacman -S noto-fonts ttf-liberation noto-fonts-cjk noto-fonts-emoji
 ```
 
 ## Включаем нужные сервисы
 
 ```shell
-sudo pacman -S nftables iptables-nft bluez
+sudo pacman -S bluez
 sudo systemctl enable --now bluetooth.service
 ```
 
@@ -53,10 +53,6 @@ yay -S ttf-ms-fonts
 ## CUPS
 
 <https://wiki.archlinux.org/title/CUPS>
-
-## Snap
-
-<https://wiki.archlinux.org/title/Snap>
 
 ## Flatpak
 
