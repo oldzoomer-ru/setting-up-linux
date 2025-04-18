@@ -6,7 +6,6 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 flatpak install flathub com.github.tchx84.Flatseal -y
-flatpak install flathub com.google.Chrome -y
 flatpak install flathub org.telegram.desktop -y
 flatpak install flathub org.keepassxc.KeePassXC -y
 
