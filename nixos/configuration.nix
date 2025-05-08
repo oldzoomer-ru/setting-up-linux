@@ -57,7 +57,7 @@
   i18n.defaultLocale = "ru_RU.UTF-8";
   console = {
     font = "cyr-sun16";
-  #   keyMap = "us";
+    # keyMap = "ru";
     useXkbConfig = true; # use xkb.options in tty.
   };
 
@@ -66,6 +66,22 @@
 
   services.xserver.desktopManager.gnome.enable = true;
   services.xserver.displayManager.gdm.enable = true;
+
+  environment.gnome.excludePackages = (with pkgs; [
+    file-roller
+    snapshot
+    gnome-maps
+    gnome-contacts
+    geary
+    simple-scan
+    gnome-calendar
+    gnome-font-viewer
+    gnome-characters
+    gnome-connections
+    gnome-tour
+    yelp
+    gnome-clocks
+  ]);
 
   # Configure keymap in X11
   services.xserver.xkb.layout = "us,ru";
@@ -88,7 +104,7 @@
   # Define a user account. Don't forget to set a password with passwd.
   users.users.egor = {
     isNormalUser = true;
-    description  = "Egor Gavrilov";
+    description  = "Egor";
     extraGroups = [ "wheel" "networkmanager" "podman" ]; # Enable sudo for the user.
     subGidRanges = [
       {
@@ -112,7 +128,6 @@
     wget
     less
     tree
-    htop
     efibootmgr
     distrobox
     gnome-tweaks
