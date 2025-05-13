@@ -57,7 +57,6 @@
   i18n.defaultLocale = "ru_RU.UTF-8";
   console = {
     font = "cyr-sun16";
-    # keyMap = "ru";
     useXkbConfig = true; # use xkb.options in tty.
   };
 
@@ -67,7 +66,7 @@
   services.xserver.desktopManager.gnome.enable = true;
   services.xserver.displayManager.gdm.enable = true;
 
-  environment.gnome.excludePackages = (with pkgs; [
+  environment.gnome.excludePackages = with pkgs; [
     file-roller
     snapshot
     gnome-maps
@@ -81,11 +80,11 @@
     gnome-tour
     yelp
     gnome-clocks
-  ]);
+  ];
 
   # Configure keymap in X11
   services.xserver.xkb.layout = "us,ru";
-  services.xserver.xkb.options = "terminate:ctrl_alt_bksp,grp:caps_toggle";
+  services.xserver.xkb.options = "grp:caps_toggle";
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
@@ -130,7 +129,6 @@
     tree
     efibootmgr
     distrobox
-    gnome-tweaks
     podman-compose
   ];
 
