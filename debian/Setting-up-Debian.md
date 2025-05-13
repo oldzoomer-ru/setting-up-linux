@@ -108,33 +108,10 @@ sudo usermod -aG vboxusers $USER
 
 ### Разработка
 
-#### Postman
-
-```shell
-flatpak install flathub com.getpostman.Postman
-sudo apt install openssl
-cd ~/.var/app/com.getpostman.Postman/config/Postman/proxy
-openssl req -subj '/C=US/CN=Postman Proxy' -new -newkey rsa:2048 -sha256 -days 365 -nodes -x509 -keyout postman-proxy-ca.key -out postman-proxy-ca.crt
-```
-
 #### DBeaver
 
 ```shell
 flatpak install flathub io.dbeaver.DBeaverCommunity
-```
-
-#### Java (разработка)
-
-Если нужен Java 11:
-
-```shell
-sudo apt install openjdk-11-jdk
-```
-
-Если нужен Java 8:
-
-```shell
-sudo apt install openjdk-8-jdk
 ```
 
 ##### XAMPP (если вам не хочется Docker'а)
@@ -172,12 +149,6 @@ ln -s /opt/lampp/htdocs/ ~/htdocs
 #### Node.js
 
 <https://nodejs.org/en/download/package-manager>
-
-#### MongoDB Compass
-
-```shell
-flatpak install flathub com.mongodb.Compass
-```
 
 ### Загрузка файлов
 

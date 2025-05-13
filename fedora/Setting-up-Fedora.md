@@ -8,32 +8,6 @@
 
 Также можно установить расширения для GNOME: <https://extensions.gnome.org/>.
 
-### Настройка swapfile в BTRFS
-
-```shell
-sudo btrfs subvolume create /swap
-cd /swap
-# При >=8 гигах ОЗУ с включённым zram хватит
-# и пару гигов (на случай, когда вообще наступит OOM даже с zram)
-sudo btrfs filesystem mkswapfile --size 2G swapfile
-sudo swapon swapfile
-sudo nano /etc/fstab
-```
-
-Дальше в fstab **(в самый его конец!)**:
-
-```text
-/swap/swapfile none swap defaults 0 0
-```
-
-Потом делаем:
-
-```shell
-sudo systemctl daemon-reload
-```
-
-И ребутимся.
-
 ### Сброс MOK в UEFI
 
 ```shell
@@ -61,7 +35,7 @@ hello-world
 ### VLC
 
 ```shell
-flatpak install flathub org.videolan.VLC
+sudo dnf install vlc
 ```
 
 ### Создание видео
@@ -98,32 +72,6 @@ flatpak install flathub com.discordapp.Discord
 
 ```shell
 curl -fsSL https://get.docker.com | bash
-```
-
-Дальше мы выносим файлы Docker'а в отдельный subvolume BTRFS'а **(по желанию)**, чтобы было удобнее юзать снапшоты:
-
-```shell
-sudo btrfs subvolume create /docker-data
-```
-
-И настраиваем их в конфигах:
-
-```shell
-sudo nano /etc/docker/daemon.json
-```
-
-```text
-{
-  "data-root": "/docker-data/docker"
-}
-```
-
-```shell
-sudo nano /etc/containerd/config.toml
-```
-
-```text
-root = "/docker-data/containerd"
 ```
 
 И делаем завершающие шаги:
@@ -171,60 +119,7 @@ sudo usermod -aG vboxusers $USER
 
 ### Разработка
 
-#### DBeaver
-
-```shell
-flatpak install flathub io.dbeaver.DBeaverCommunity
-```
-
-#### Postman
-
-```shell
-flatpak install flathub com.getpostman.Postman
-sudo dnf install openssl
-cd ~/.var/app/com.getpostman.Postman/config/Postman/proxy
-openssl req -subj '/C=US/CN=Postman Proxy' -new -newkey rsa:2048 -sha256 -days 365 -nodes -x509 -keyout postman-proxy-ca.key -out postman-proxy-ca.crt
-```
-
-#### Java (разработка)
-
-Если нужен Java 17:
-
-```shell
-sudo dnf install java-17-openjdk-devel
-```
-
-Если нужен Java 11:
-
-```shell
-sudo dnf install java-11-openjdk-devel
-```
-
-Если нужен Java 8:
-
-```shell
-sudo dnf install java-1.8.0-openjdk-devel
-```
-
-##### Maven
-
-```shell
-sudo dnf install maven
-```
-
-#### PHP
-
-Если вам нужен только CLI для очень простых скриптов: `php-cli` в DNF.
-
-Если вам нужен LAMP, то присмотритесь лучше к решениям на базе Docker-контейнеров. Готовые скрипты для Docker Compose вы можете найти в Интернете.
-
-Если вам нужен PHP для Laravel:
-
-```shell
-sudo dnf install php php-common php-cli php-gd php-mysqlnd php-curl php-intl php-mbstring php-bcmath php-xml php-zip composer
-```
-
-##### XAMPP (если вам не хочется Docker'а)
+#### XAMPP (если вам не хочется Docker'а)
 
 Ставим зависимости:
 
@@ -265,12 +160,6 @@ ln -s /opt/lampp/htdocs/ ~/htdocs
 #### Node.js
 
 <https://nodejs.org/en/download/package-manager>
-
-#### MongoDB Compass
-
-```shell
-flatpak install flathub com.mongodb.Compass
-```
 
 ### Загрузка файлов
 
