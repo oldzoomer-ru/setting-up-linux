@@ -39,6 +39,8 @@
     ];
   };
 
+  system.autoUpgrade.enable = true;
+
   services.journald.extraConfig = "SystemMaxUse=50M";
 
   networking.hostName = "egor-laptop"; # Define your hostname.
@@ -80,6 +82,7 @@
     gnome-tour
     yelp
     gnome-clocks
+    epiphany
   ];
 
   # Configure keymap in X11
@@ -100,6 +103,8 @@
   # Enable touchpad support (enabled default in most desktopManager).
   # services.libinput.enable = true;
 
+  services.userborn.enable = true;
+
   # Define a user account. Don't forget to set a password with passwd.
   users.users.egor = {
     isNormalUser = true;
@@ -119,6 +124,8 @@
     ];
   };
 
+  nixpkgs.config.allowUnfree = true;
+
   # programs.firefox.enable = true;
 
   # List packages installed in system profile. To search, run:
@@ -130,6 +137,7 @@
     efibootmgr
     distrobox
     podman-compose
+    google-chrome
   ];
 
   services.flatpak.enable = true;
