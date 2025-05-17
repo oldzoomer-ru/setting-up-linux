@@ -14,7 +14,7 @@
     loader = {
       systemd-boot.enable = true;
       efi.canTouchEfiVariables = true;
-      timeout = 0;
+      timeout = 3;
     };
 
     tmp.useTmpfs = true;
@@ -26,16 +26,10 @@
     plymouth.enable = true;
 
     # Enable "Silent Boot"
-    consoleLogLevel = 0;
-    initrd.verbose = false;
     kernelParams = [
       "quiet"
       "splash"
       "boot.shell_on_fail"
-      "loglevel=3"
-      "rd.systemd.show_status=false"
-      "rd.udev.log_level=3"
-      "udev.log_priority=3"
     ];
   };
 
@@ -44,8 +38,7 @@
   services.journald.extraConfig = "SystemMaxUse=50M";
 
   networking.hostName = "egor-laptop"; # Define your hostname.
-  # Pick only one of the below networking options.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+
   networking.networkmanager.enable = true;  # Easiest to use and most distros use this by default.
 
   # Set your time zone.
@@ -100,11 +93,6 @@
     pulse.enable = true;
   };
 
-  # Enable touchpad support (enabled default in most desktopManager).
-  # services.libinput.enable = true;
-
-  services.userborn.enable = true;
-
   # Define a user account. Don't forget to set a password with passwd.
   users.users.egor = {
     isNormalUser = true;
@@ -149,11 +137,11 @@
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
+  programs.mtr.enable = true;
+  programs.gnupg.agent = {
+    enable = true;
+    enableSSHSupport = true;
+  };
 
   # List services that you want to enable:
 
