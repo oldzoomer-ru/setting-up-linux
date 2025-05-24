@@ -16,11 +16,9 @@ fi
 echo "SystemMaxUse=50M" >> $FILE
 systemctl restart systemd-journald.service
 
-# snap remove --purge snap-store
-apt install -y flatpak
-flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-apt install -y gnome-software-plugin-flatpak gnome-software
+# apt install -y flatpak gnome-software-plugin-flatpak gnome-software
+# flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 apt install -y ubuntu-restricted-extras
-# wget -P /tmp https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-# apt install -y /tmp/google-chrome-stable_current_amd64.deb
-# rm /tmp/google-chrome-stable_current_amd64.deb
+wget -P /tmp https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+apt install -y /tmp/google-chrome-stable_current_amd64.deb
+rm /tmp/google-chrome-stable_current_amd64.deb
