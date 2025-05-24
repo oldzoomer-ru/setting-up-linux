@@ -18,15 +18,11 @@ systemctl restart systemd-journald.service
 
 apt purge -y gnome-games transmission-gtk zutty
 apt autoremove --purge -y
-apt install -y systemd-zram-generator
-systemctl daemon-reload
-apt install -y systemd-oomd
 apt install -y ttf-mscorefonts-installer
-apt install -y flatpak
-apt install -y gnome-software-plugin-flatpak
+apt install -y flatpak gnome-software-plugin-flatpak
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 # apt install -y neofetch
-# wget -P /tmp https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-# apt install -y /tmp/google-chrome-stable_current_amd64.deb
-# rm /tmp/google-chrome-stable_current_amd64.deb
+wget -P /tmp https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+apt install -y /tmp/google-chrome-stable_current_amd64.deb
+rm /tmp/google-chrome-stable_current_amd64.deb
 # apt install -y unrar
