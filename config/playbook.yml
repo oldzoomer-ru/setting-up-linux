@@ -1,6 +1,7 @@
 ---
 - name: Universal System Configuration Playbook
-  hosts: all
+  hosts: 127.0.0.1
+  connection: local
   become: yes
   vars:
     journald_limit: "50M"
