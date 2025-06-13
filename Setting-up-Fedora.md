@@ -2,12 +2,6 @@
 
 ## Самое необходимое
 
-### Первоначальная настройка системы
-
-Используйте скрипт `system_setup.sh` и `system_setup_nonroot.sh`.
-
-Также можно установить расширения для GNOME: <https://extensions.gnome.org/>.
-
 ### Сброс MOK в UEFI
 
 ```shell
@@ -67,20 +61,6 @@ flatpak install flathub com.discordapp.Discord
 ```
 
 ### Виртуализация
-
-#### Docker
-
-```shell
-curl -fsSL https://get.docker.com | bash
-```
-
-И делаем завершающие шаги:
-
-```shell
-sudo usermod -aG docker $USER
-sudo systemctl enable docker.service
-sudo systemctl enable containerd.service
-```
 
 #### Virt-Manager
 
@@ -167,19 +147,4 @@ ln -s /opt/lampp/htdocs/ ~/htdocs
 
 ```shell
 flatpak install flathub com.ugetdm.uGet
-```
-
-#### Transmission
-
-```shell
-flatpak install flathub com.transmissionbt.Transmission
-```
-
-### Снапшоты в BTRFS
-
-```shell
-sudo dnf install snapper
-sudo snapper -c root create-config /
-# Потом нужно поменять настройки в
-# /etc/snapper/configs/root через nano
 ```

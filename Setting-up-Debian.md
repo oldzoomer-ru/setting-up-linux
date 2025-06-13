@@ -69,13 +69,6 @@ flatpak install flathub com.discordapp.Discord
 
 ### Виртуализация
 
-#### Docker
-
-```shell
-curl -fsSL https://get.docker.com | bash
-sudo usermod -aG docker $USER
-```
-
 #### VirtualBox
 
 Сначала ставим DKMS:
@@ -156,10 +149,4 @@ ln -s /opt/lampp/htdocs/ ~/htdocs
 
 ```shell
 flatpak install flathub com.ugetdm.uGet
-```
-
-#### Transmission
-
-```shell
-flatpak install flathub com.transmissionbt.Transmission
 ```
