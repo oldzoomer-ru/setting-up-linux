@@ -24,15 +24,30 @@
         state: present
       notify: restart journald
 
-    # 2. Configure Flatpak if not configured
+    # 2. Configure Flatpak only if not already installed
+    - name: Check if Flatpak is installed
+      ansible.builtin.command: which flatpak
+      register: flatpak_installed
+      ignore_errors: yes
+      changed_when: false
+
     - name: Install Flatpak
       ansible.builtin.package:
         name: flatpak
         state: present
+      when: not flatpak_installed.rc == 0
+
+    - name: Check if Flathub remote exists
+      ansible.builtin.command: flatpak remotes --columns=name
+      register: flatpak_remotes
+      changed_when: false
+      when: not flatpak_installed.rc == 0
 
     - name: Add Flathub remote if not exists
       ansible.builtin.command: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-      when: "'flathub' not in ansible_facts.flatpak_remotes|default([])"
+      when: >
+        not flatpak_installed.rc == 0 and
+        ('flathub' not in flatpak_remotes.stdout)
       register: flathub_added
       changed_when: flathub_added.rc == 0
       ignore_errors: yes
@@ -159,7 +174,7 @@
         name: code
         state: present
 
-    # 6. Install Flatpak applications if not installed natively
+    # 6. Install Flatpak applications only if not installed natively AND Flatpak is available
     - name: Check for native LibreOffice
       ansible.builtin.command: which libreoffice
       register: libreoffice_installed
@@ -168,7 +183,9 @@
 
     - name: Install LibreOffice via Flatpak
       ansible.builtin.command: flatpak install -y flathub org.libreoffice.LibreOffice
-      when: libreoffice_installed.rc != 0
+      when: >
+        libreoffice_installed.rc != 0 and
+        flatpak_installed.rc == 0
 
     - name: Check for native Transmission
       ansible.builtin.command: which transmission-gtk
@@ -178,7 +195,9 @@
 
     - name: Install Transmission via Flatpak
       ansible.builtin.command: flatpak install -y flathub com.transmissionbt.Transmission
-      when: transmission_installed.rc != 0
+      when: >
+        transmission_installed.rc != 0 and
+        flatpak_installed.rc == 0
 
     - name: Check for native Telegram
       ansible.builtin.command: which telegram-desktop
@@ -188,7 +207,9 @@
 
     - name: Install Telegram via Flatpak
       ansible.builtin.command: flatpak install -y flathub org.telegram.desktop
-      when: telegram_installed.rc != 0
+      when: >
+        telegram_installed.rc != 0 and
+        flatpak_installed.rc == 0
 
     - name: Check for native KeePassXC
       ansible.builtin.command: which keepassxc
@@ -198,7 +219,9 @@
 
     - name: Install KeePassXC via Flatpak
       ansible.builtin.command: flatpak install -y flathub org.keepassxc.KeePassXC
-      when: keepassxc_installed.rc != 0
+      when: >
+        keepassxc_installed.rc != 0 and
+        flatpak_installed.rc == 0
 
     # 7. Configure kernel module parameter
     - name: Create modprobe config directory
