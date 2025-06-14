@@ -65,10 +65,16 @@
           dest: "/tmp/chrome_package.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
           mode: '0644'
 
-      - name: Install Chrome package
-        ansible.builtin.package:
-          name: "/tmp/chrome_package.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
-          state: present
+      - name: Install Chrome package (Debian)
+        ansible.builtin.apt:
+          deb: "/tmp/chrome_package.deb"
+        when: ansible_os_family == 'Debian'
+
+      - name: Install Chrome package (RHEL)
+        ansible.builtin.yum:
+          name: "/tmp/chrome_package.rpm"
+          disable_gpg_check: yes
+        when: ansible_os_family == 'RedHat'
 
       - name: Clean up Chrome package
         ansible.builtin.file:
