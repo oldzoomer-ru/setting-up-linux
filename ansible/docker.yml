@@ -4,69 +4,63 @@
   connection: local
   become: yes
   vars:
-    docker_repo: "https://download.docker.com/linux/{{
-      'rhel' if ansible_distribution in ['CentOS', 'Rocky', 'AlmaLinux'] else
-      ansible_distribution | lower
-    }}"
+    docker_script_url: "https://get.docker.com"
+    docker_script_path: "/tmp/get-docker.sh"
 
   tasks:
-    - name: Install prerequisite packages
-      ansible.builtin.package:
-        name:
-          - "curl"
-          - "gnupg"
-          - "ca-certificates"
-          - "{{ 'software-properties-common' if ansible_os_family == 'Debian' else 'yum-utils' }}"
-        state: present
+    - name: Check for existing Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
 
-    - name: Configure Docker repositories (Debian)
-      block:
-        - name: Add Docker GPG key
-          ansible.builtin.apt_key:
-            url: "{{ docker_repo }}/gpg"
-            state: present
+    - name: Exit if Docker exists
+      ansible.builtin.fail:
+        msg: "Docker already installed: {{ docker_check.stdout }}"
+      when: docker_check.rc == 0
 
-        - name: Add Docker repository
-          ansible.builtin.apt_repository:
-            repo: "deb [arch=amd64] {{ docker_repo }} {{ ansible_distribution_release }} stable"
-            state: present
-      when: ansible_os_family == "Debian"
+    - name: Download official Docker installer
+      ansible.builtin.get_url:
+        url: "{{ docker_script_url }}"
+        dest: "{{ docker_script_path }}"
+        mode: "0755"
+      when: docker_check.rc != 0
 
-    - name: Configure Docker repositories (RHEL)
-      block:
-        - name: Add Docker repository
-          ansible.builtin.get_url:
-            url: "{{ docker_repo }}/docker-ce.repo"
-            dest: "/etc/yum.repos.d/docker-ce.repo"
-      when: ansible_os_family == "RedHat"
+    - name: Run Docker installer
+      ansible.builtin.command: "{{ docker_script_path }}"
+      register: install_result
+      changed_when: "'docker is already installed' not in install_result.stdout"
+      when: docker_check.rc != 0
 
-    - name: Install Docker components
-      ansible.builtin.package:
-        name:
-          - "docker-ce"
-          - "docker-ce-cli"
-          - "containerd.io"
-          - "docker-buildx-plugin"
-          - "docker-compose-plugin"
-        state: present
-
-    - name: Start and enable Docker service
+    - name: Ensure Docker service is running
       ansible.builtin.systemd:
         name: docker
         state: started
         enabled: yes
+      when: docker_check.rc != 0
 
-    - name: Add current user to docker group
+    - name: Add user to docker group
       ansible.builtin.user:
         name: "{{ ansible_user_id }}"
         groups: docker
         append: yes
+      when: docker_check.rc != 0
 
-    - name: Verify Docker installation
-      ansible.builtin.command: docker --version
-      register: docker_version
-      changed_when: false
+    - name: Verify Docker components
+      block:
+        - name: Check Docker Engine
+          ansible.builtin.command: docker --version
+          register: docker_version
+          changed_when: false
 
-    - name: Display Docker version
-      ansible.builtin.debug:
-        msg: "Docker installed successfully: {{ docker_version.stdout }}"
+        - name: Check Docker Compose
+          ansible.builtin.command: docker compose version
+          register: compose_version
+          changed_when: false
+
+        - name: Show installation results
+          ansible.builtin.debug:
+            msg:
+              - "Docker Engine: {{ docker_version.stdout }}"
+              - "Docker Compose: {{ compose_version.stdout_lines[0] }}"
+      when: docker_check.rc != 0
