@@ -1,0 +1,55 @@
+---
+- name: Install Visual Studio Code using Microsoft's official method
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Verify supported Linux distribution
+      ansible.builtin.assert:
+        that: ansible_facts['os_family'] in ['Debian', 'RedHat']
+        msg: "Only Debian/Ubuntu and RHEL/CentOS/RockyLinux/AlmaLinux are supported"
+
+    # Common prerequisites
+    - name: Install curl (all systems)
+      ansible.builtin.package:
+        name: curl
+        state: present
+
+    # Debian/Ubuntu specific tasks
+    - name: Install APT prerequisites
+      ansible.builtin.package:
+        name:
+          - gpg
+          - apt-transport-https
+        state: present
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Download Microsoft GPG key (Debian)
+      ansible.builtin.get_url:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        dest: /usr/share/keyrings/microsoft.gpg
+        mode: '0644'
+        checksum: "sha256:BC52 8686 B50D 79E3 39D3 12EF BE8F 2A76 1D4C 7DF6"
+      when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Add VS Code repository (Debian/Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/vscode stable main"
+        state: present
+        filename: vscode
+        update_cache: yes
+      when: ansible_facts['os_family'] == 'Debian'
+
+    # RHEL/CentOS specific tasks
+    - name: Import Microsoft GPG key (RPM)
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://packages.microsoft.com/keys/microsoft.asc
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Add VS Code repository (RHEL-based)
+      ansible.builtin.yum_repository:
+        name: vscode
+        description: "Visual Studio Code"
+        baseurl: https://packages.microsoft.com/yumrepos/vscode
