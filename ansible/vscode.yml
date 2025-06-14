@@ -1,6 +1,7 @@
 ---
 - name: Install Visual Studio Code using Microsoft's official method
-  hosts: all
+  hosts: 127.0.0.1
+  connection: local
   become: yes
   gather_facts: yes
 
@@ -30,7 +31,6 @@
         url: https://packages.microsoft.com/keys/microsoft.asc
         dest: /usr/share/keyrings/microsoft.gpg
         mode: '0644'
-        checksum: "sha256:BC52 8686 B50D 79E3 39D3 12EF BE8F 2A76 1D4C 7DF6"
       when: ansible_facts['os_family'] == 'Debian'
 
     - name: Add VS Code repository (Debian/Ubuntu)
