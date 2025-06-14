@@ -5,250 +5,197 @@
   become: yes
   vars:
     journald_limit: "50M"
-    docker_repo_url_deb: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
-    docker_repo_url_rpm: "https://download.docker.com/linux/{{ 'rhel' if ansible_distribution in ['Rocky', 'AlmaLinux', 'OracleLinux'] else ansible_distribution | lower }}/docker-ce.repo"
-    vscode_repo_url_deb: "https://packages.microsoft.com/repos/code"
-    vscode_repo_url_rpm: "https://packages.microsoft.com/yumrepos/vscode"
-    chrome_deb_url: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
-    chrome_rpm_url: "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
-    rpmfusion_free_url: "https://download1.rpmfusion.org/free/{{ 'el' if ansible_distribution in ['Rocky', 'AlmaLinux', 'OracleLinux'] else 'fedora' }}/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
-    rpmfusion_nonfree_url: "https://download1.rpmfusion.org/nonfree/{{ 'el' if ansible_distribution in ['Rocky', 'AlmaLinux', 'OracleLinux'] else 'fedora' }}/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    package_urls:
+      docker_repo: "https://download.docker.com/linux/{{
+        'rhel' if ansible_distribution in ['CentOS', 'Rocky', 'AlmaLinux'] else
+        ansible_distribution | lower
+      }}"
+      vscode_repo: "https://packages.microsoft.com/{{
+        'repos/code' if ansible_os_family == 'Debian' else 'yumrepos/vscode'
+      }}"
+      chrome: "https://dl.google.com/linux/direct/google-chrome-stable_current_{{
+        'amd64.deb' if ansible_os_family == 'Debian' else 'x86_64.rpm'
+      }}"
+      rpmfusion:
+        free: "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+        nonfree: "https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
 
   tasks:
-    # 1. Limit systemd-journald log size
     - name: Configure journald log limits
       ansible.builtin.lineinfile:
-        path: /etc/systemd/journald.conf
+        path: "/etc/systemd/journald.conf"
         regexp: "^SystemMaxUse="
         line: "SystemMaxUse={{ journald_limit }}"
         state: present
       notify: restart journald
 
-    # 2. Configure Flatpak only if not already installed
-    - name: Check if Flatpak is installed
-      ansible.builtin.command: which flatpak
-      register: flatpak_installed
-      ignore_errors: yes
-      changed_when: false
+    - name: Install Flatpak if not present
+      block:
+        - name: Check Flatpak installation
+          ansible.builtin.command: "which flatpak"
+          register: flatpak_check
+          ignore_errors: yes
+          changed_when: false
 
-    - name: Install Flatpak
-      ansible.builtin.package:
-        name: flatpak
-        state: present
-      when: not flatpak_installed.rc == 0
+        - name: Install Flatpak
+          ansible.builtin.package:
+            name: "flatpak"
+            state: present
+          when: flatpak_check.rc != 0
 
-    - name: Check if Flathub remote exists
-      ansible.builtin.command: flatpak remotes --columns=name
-      register: flatpak_remotes
-      changed_when: false
-      when: not flatpak_installed.rc == 0
+        - name: Add Flathub remote
+          ansible.builtin.command: "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+          when: flatpak_check.rc != 0
 
-    - name: Add Flathub remote if not exists
-      ansible.builtin.command: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-      when: >
-        not flatpak_installed.rc == 0 and
-        ('flathub' not in flatpak_remotes.stdout)
-      register: flathub_added
-      changed_when: flathub_added.rc == 0
-      ignore_errors: yes
-
-    # 3. Install RPM Fusion repositories for RHEL-based and Fedora
-    - name: Install RPM Fusion free repository
-      ansible.builtin.yum:
-        name: "{{ rpmfusion_free_url }}"
-        disable_gpg_check: yes
-      when: ansible_distribution in ['Fedora', 'Rocky', 'AlmaLinux', 'OracleLinux']
-
-    - name: Install RPM Fusion nonfree repository
-      ansible.builtin.yum:
-        name: "{{ rpmfusion_nonfree_url }}"
-        disable_gpg_check: yes
-      when: ansible_distribution in ['Fedora', 'Rocky', 'AlmaLinux', 'OracleLinux']
-
-    # 4. Install codecs and media support
-    - name: Install Ubuntu restricted extras
-      ansible.builtin.package:
-        name: ubuntu-restricted-extras
-        state: present
-      when: ansible_distribution == 'Ubuntu'
-
-    - name: Install multimedia codecs (Debian)
+    - name: Install essential packages
       ansible.builtin.package:
         name:
-          - libavcodec-extra
-          - gstreamer1.0-libav
-          - gstreamer1.0-plugins-ugly
-          - gstreamer1.0-plugins-bad
-          - gstreamer1.0-vaapi
+          - "curl"
+          - "wget"
+          - "gnupg"
+          - "ca-certificates"
+          - "{{ 'software-properties-common' if ansible_os_family == 'Debian' else 'yum-utils' }}"
         state: present
-      when: ansible_distribution == 'Debian'
 
-    - name: Install multimedia codecs (RPM-based with RPM Fusion)
+    - name: Install Chrome
+      block:
+      - name: Download Chrome package
+        ansible.builtin.get_url:
+          url: "{{ package_urls.chrome }}"
+          dest: "/tmp/chrome_package.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
+          mode: '0644'
+
+      - name: Install Chrome package (Debian)
+        ansible.builtin.apt:
+          deb: "/tmp/chrome_package.deb"
+        when: ansible_os_family == 'Debian'
+
+      - name: Install Chrome package (RHEL)
+        ansible.builtin.yum:
+          name: "/tmp/chrome_package.rpm"
+          disable_gpg_check: yes
+        when: ansible_os_family == 'RedHat'
+
+      - name: Clean up Chrome package
+        ansible.builtin.file:
+          path: "/tmp/chrome_package.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
+          state: absent
+      when: ansible_os_family in ['Debian', 'RedHat']
+
+    - name: Configure Debian repositories
+      block:
+        - name: Add Docker GPG key
+          ansible.builtin.apt_key:
+            url: "{{ package_urls.docker_repo }}/gpg"
+            state: present
+
+        - name: Add Docker repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] {{ package_urls.docker_repo }} {{ ansible_distribution_release }} stable"
+            state: present
+
+        - name: Add VS Code GPG key
+          ansible.builtin.apt_key:
+            url: "https://packages.microsoft.com/keys/microsoft.asc"
+            state: present
+
+        - name: Add VS Code repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] {{ package_urls.vscode_repo }} stable main"
+            state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Configure RHEL repositories
+      block:
+        - name: Install RPM Fusion free repository
+          ansible.builtin.package:
+            name: "{{ package_urls.rpmfusion.free }}"
+            state: present
+
+        - name: Install RPM Fusion non-free repository
+          ansible.builtin.package:
+            name: "{{ package_urls.rpmfusion.nonfree }}"
+            state: present
+
+        - name: Add Docker repository
+          ansible.builtin.get_url:
+            url: "{{ package_urls.docker_repo }}/docker-ce.repo"
+            dest: "/etc/yum.repos.d/docker-ce.repo"
+
+        - name: Add VS Code repository
+          ansible.builtin.yum_repository:
+            name: "vscode"
+            description: "VS Code"
+            baseurl: "{{ package_urls.vscode_repo }}"
+            gpgcheck: yes
+            gpgkey: "https://packages.microsoft.com/keys/microsoft.asc"
+            enabled: yes
+      when: ansible_os_family == "RedHat"
+
+    - name: Install multimedia packages
+      block:
+        - name: Install RHEL codecs
+          ansible.builtin.package:
+            name:
+              - "ffmpeg"
+              - "gstreamer1-plugins-ugly"
+              - "gstreamer1-plugins-bad-free"
+              - "gstreamer1-plugins-bad-freeworld"
+              - "gstreamer1-plugins-good"
+              - "gstreamer1-plugins-base"
+            state: present
+          when: ansible_os_family == "RedHat"
+
+        - name: Install Ubuntu restricted extras
+          ansible.builtin.package:
+            name: "ubuntu-restricted-extras"
+            state: present
+          when: ansible_distribution == "Ubuntu"
+
+        - name: Install Debian codecs
+          ansible.builtin.package:
+            name:
+              - "ffmpeg"
+              - "libavcodec-extra"
+              - "gstreamer1.0-libav"
+              - "gstreamer1.0-plugins-ugly"
+              - "gstreamer1.0-plugins-good"
+              - "gstreamer1.0-plugins-bad"
+            state: present
+          when: ansible_os_family == "Debian"
+
+    - name: Install Docker and related packages
       ansible.builtin.package:
         name:
-          - ffmpeg
-          - gstreamer1-plugins-ugly
-          - gstreamer1-plugins-bad-freeworld
-          - gstreamer1-libav
-          - gstreamer1-plugins-good
-          - gstreamer1-plugins-bad
-          - gstreamer1-plugins-base
-        state: present
-      when: ansible_distribution in ['Fedora', 'Rocky', 'AlmaLinux', 'OracleLinux']
-
-    # 5. Install native packages (Chrome, Docker, VS Code)
-    - name: Install prerequisites for native packages
-      ansible.builtin.package:
-        name:
-          - curl
-          - wget
-          - gnupg
-          - ca-certificates
-          - software-properties-common
-        state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Install Chrome for Debian
-      ansible.builtin.apt:
-        deb: "{{ chrome_deb_url }}"
-      when: ansible_os_family == 'Debian'
-
-    - name: Install Chrome for RPM
-      ansible.builtin.yum:
-        name: "{{ chrome_rpm_url }}"
-        disable_gpg_check: yes
-      when: ansible_os_family == 'RedHat'
-
-    - name: Add Docker GPG key (Debian)
-      ansible.builtin.apt_key:
-        url: "{{ docker_repo_url_deb }}"
-        state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Add Docker repository (Debian)
-      ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
-        state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Add Docker repository (RPM)
-      ansible.builtin.get_url:
-        url: "{{ docker_repo_url_rpm }}"
-        dest: /etc/yum.repos.d/docker-ce.repo
-      when: ansible_os_family == 'RedHat'
-
-    - name: Add VS Code GPG key (Debian)
-      ansible.builtin.apt_key:
-        url: https://packages.microsoft.com/keys/microsoft.asc
-        state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Add VS Code repository (Debian)
-      ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64] {{ vscode_repo_url_deb }} stable main"
-        state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Add VS Code repository (RPM)
-      ansible.builtin.yum_repository:
-        name: vscode
-        description: "VS Code"
-        baseurl: "{{ vscode_repo_url_rpm }}"
-        gpgcheck: yes
-        gpgkey: https://packages.microsoft.com/keys/microsoft.asc
-        enabled: yes
-      when: ansible_os_family == 'RedHat'
-
-    - name: Install Docker Engine
-      ansible.builtin.package:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
+          - "docker-ce"
+          - "docker-ce-cli"
+          - "containerd.io"
+          - "docker-buildx-plugin"
+          - "docker-compose-plugin"
         state: present
 
     - name: Install VS Code
       ansible.builtin.package:
-        name: code
+        name: "code"
         state: present
 
-    # 6. Install Flatpak applications only if not installed natively AND Flatpak is available
-    - name: Check for native LibreOffice
-      ansible.builtin.command: which libreoffice
-      register: libreoffice_installed
-      ignore_errors: yes
-      changed_when: false
+    - name: Configure kernel module
+      block:
+        - name: Create modprobe config directory
+          ansible.builtin.file:
+            path: "/etc/modprobe.d"
+            state: directory
+            mode: "0755"
 
-    - name: Install LibreOffice via Flatpak
-      ansible.builtin.command: flatpak install -y flathub org.libreoffice.LibreOffice
-      when: >
-        libreoffice_installed.rc != 0 and
-        flatpak_installed.rc == 0
-
-    - name: Check for native Transmission
-      ansible.builtin.command: which transmission-gtk
-      register: transmission_installed
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Install Transmission via Flatpak
-      ansible.builtin.command: flatpak install -y flathub com.transmissionbt.Transmission
-      when: >
-        transmission_installed.rc != 0 and
-        flatpak_installed.rc == 0
-
-    - name: Check for native Telegram
-      ansible.builtin.command: which telegram-desktop
-      register: telegram_installed
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Install Telegram via Flatpak
-      ansible.builtin.command: flatpak install -y flathub org.telegram.desktop
-      when: >
-        telegram_installed.rc != 0 and
-        flatpak_installed.rc == 0
-
-    - name: Check for native KeePassXC
-      ansible.builtin.command: which keepassxc
-      register: keepassxc_installed
-      ignore_errors: yes
-      changed_when: false
-
-    - name: Install KeePassXC via Flatpak
-      ansible.builtin.command: flatpak install -y flathub org.keepassxc.KeePassXC
-      when: >
-        keepassxc_installed.rc != 0 and
-        flatpak_installed.rc == 0
-
-    # 7. Configure kernel module parameter
-    - name: Create modprobe config directory
-      ansible.builtin.file:
-        path: /etc/modprobe.d
-        state: directory
-        mode: '0755'
-
-    - name: Configure rtw88_core module parameter
-      ansible.builtin.lineinfile:
-        path: /etc/modprobe.d/rtw88_core.conf
-        line: "options rtw88_core disable_lps_deep=y"
-        create: yes
-        state: present
+        - name: Set rtw88_core parameter
+          ansible.builtin.lineinfile:
+            path: "/etc/modprobe.d/rtw88_core.conf"
+            line: "options rtw88_core disable_lps_deep=y"
+            create: yes
+            state: present
 
   handlers:
     - name: restart journald
       ansible.builtin.systemd:
-        name: systemd-journald
+        name: "systemd-journald"
         state: restarted
-
-    - name: update initramfs
-      ansible.builtin.command: update-initramfs -u
-      when: ansible_os_family == 'Debian'
-      listen: "kernel module changed"
-
-    - name: rebuild initramfs (RHEL)
-      ansible.builtin.command: dracut -f
-      when: ansible_os_family == 'RedHat'
-      listen: "kernel module changed"
