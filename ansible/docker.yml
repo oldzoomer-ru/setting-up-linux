@@ -1,0 +1,72 @@
+---
+- name: Docker Installation Playbook
+  hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars:
+    docker_repo: "https://download.docker.com/linux/{{
+      'rhel' if ansible_distribution in ['CentOS', 'Rocky', 'AlmaLinux'] else
+      ansible_distribution | lower
+    }}"
+
+  tasks:
+    - name: Install prerequisite packages
+      ansible.builtin.package:
+        name:
+          - "curl"
+          - "gnupg"
+          - "ca-certificates"
+          - "{{ 'software-properties-common' if ansible_os_family == 'Debian' else 'yum-utils' }}"
+        state: present
+
+    - name: Configure Docker repositories (Debian)
+      block:
+        - name: Add Docker GPG key
+          ansible.builtin.apt_key:
+            url: "{{ docker_repo }}/gpg"
+            state: present
+
+        - name: Add Docker repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch=amd64] {{ docker_repo }} {{ ansible_distribution_release }} stable"
+            state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Configure Docker repositories (RHEL)
+      block:
+        - name: Add Docker repository
+          ansible.builtin.get_url:
+            url: "{{ docker_repo }}/docker-ce.repo"
+            dest: "/etc/yum.repos.d/docker-ce.repo"
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Docker components
+      ansible.builtin.package:
+        name:
+          - "docker-ce"
+          - "docker-ce-cli"
+          - "containerd.io"
+          - "docker-buildx-plugin"
+          - "docker-compose-plugin"
+        state: present
+
+    - name: Start and enable Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add current user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: yes
+
+    - name: Verify Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+    - name: Display Docker version
+      ansible.builtin.debug:
+        msg: "Docker installed successfully: {{ docker_version.stdout }}"

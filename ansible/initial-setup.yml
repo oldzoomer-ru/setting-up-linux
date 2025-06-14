@@ -6,19 +6,13 @@
   vars:
     journald_limit: "50M"
     package_urls:
-      docker_repo: "https://download.docker.com/linux/{{
-        'rhel' if ansible_distribution in ['CentOS', 'Rocky', 'AlmaLinux'] else
-        ansible_distribution | lower
-      }}"
-      vscode_repo: "https://packages.microsoft.com/{{
-        'repos/code' if ansible_os_family == 'Debian' else 'yumrepos/vscode'
-      }}"
       chrome: "https://dl.google.com/linux/direct/google-chrome-stable_current_{{
         'amd64.deb' if ansible_os_family == 'Debian' else 'x86_64.rpm'
       }}"
       rpmfusion:
         free: "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
         nonfree: "https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+      mscorefonts: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
 
   tasks:
     - name: Configure journald log limits
@@ -47,16 +41,6 @@
           ansible.builtin.command: "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
           when: flatpak_check.rc != 0
 
-    - name: Install essential packages
-      ansible.builtin.package:
-        name:
-          - "curl"
-          - "wget"
-          - "gnupg"
-          - "ca-certificates"
-          - "{{ 'software-properties-common' if ansible_os_family == 'Debian' else 'yum-utils' }}"
-        state: present
-
     - name: Install Chrome
       block:
       - name: Download Chrome package
@@ -82,29 +66,6 @@
           state: absent
       when: ansible_os_family in ['Debian', 'RedHat']
 
-    - name: Configure Debian repositories
-      block:
-        - name: Add Docker GPG key
-          ansible.builtin.apt_key:
-            url: "{{ package_urls.docker_repo }}/gpg"
-            state: present
-
-        - name: Add Docker repository
-          ansible.builtin.apt_repository:
-            repo: "deb [arch=amd64] {{ package_urls.docker_repo }} {{ ansible_distribution_release }} stable"
-            state: present
-
-        - name: Add VS Code GPG key
-          ansible.builtin.apt_key:
-            url: "https://packages.microsoft.com/keys/microsoft.asc"
-            state: present
-
-        - name: Add VS Code repository
-          ansible.builtin.apt_repository:
-            repo: "deb [arch=amd64] {{ package_urls.vscode_repo }} stable main"
-            state: present
-      when: ansible_os_family == "Debian"
-
     - name: Configure RHEL repositories
       block:
         - name: Install RPM Fusion free repository
@@ -116,20 +77,26 @@
           ansible.builtin.package:
             name: "{{ package_urls.rpmfusion.nonfree }}"
             state: present
+      when: ansible_os_family == "RedHat"
 
-        - name: Add Docker repository
+    - name: Install Microsoft Core Fonts from Sourceforge (RHEL/Fedora)
+      block:
+        - name: Download mscorefonts package
           ansible.builtin.get_url:
-            url: "{{ package_urls.docker_repo }}/docker-ce.repo"
-            dest: "/etc/yum.repos.d/docker-ce.repo"
+            url: "{{ package_urls.mscorefonts }}"
+            dest: "/tmp/msttcore-fonts-installer.rpm"
+            mode: '0644'
 
-        - name: Add VS Code repository
-          ansible.builtin.yum_repository:
-            name: "vscode"
-            description: "VS Code"
-            baseurl: "{{ package_urls.vscode_repo }}"
-            gpgcheck: yes
-            gpgkey: "https://packages.microsoft.com/keys/microsoft.asc"
-            enabled: yes
+        - name: Install mscorefonts package
+          ansible.builtin.yum:
+            name: "/tmp/msttcore-fonts-installer.rpm"
+            disable_gpg_check: yes
+            state: present
+
+        - name: Clean up mscorefonts package
+          ansible.builtin.file:
+            path: "/tmp/msttcore-fonts-installer.rpm"
+            state: absent
       when: ansible_os_family == "RedHat"
 
     - name: Install multimedia packages
@@ -163,21 +130,6 @@
               - "gstreamer1.0-plugins-bad"
             state: present
           when: ansible_os_family == "Debian"
-
-    - name: Install Docker and related packages
-      ansible.builtin.package:
-        name:
-          - "docker-ce"
-          - "docker-ce-cli"
-          - "containerd.io"
-          - "docker-buildx-plugin"
-          - "docker-compose-plugin"
-        state: present
-
-    - name: Install VS Code
-      ansible.builtin.package:
-        name: "code"
-        state: present
 
     - name: Configure kernel module
       block:
