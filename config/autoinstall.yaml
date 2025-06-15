@@ -18,7 +18,6 @@ autoinstall:
   # For Ansible remote setting up
   ssh:
     install-server: true
-    allow-pw: true
   codecs:
     install: true
   drivers:
