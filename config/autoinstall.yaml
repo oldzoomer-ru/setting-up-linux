@@ -11,9 +11,6 @@ autoinstall:
     - network
     - identity
     - storage
-  storage:
-    layout:
-      reset-partition: true
   updates: all
   # For Ansible remote setting up
   ssh:
