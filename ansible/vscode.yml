@@ -1,7 +1,6 @@
 ---
 - name: Install Visual Studio Code
-  hosts: 127.0.0.1
-  connection: local
+  hosts: all
   become: yes
   gather_facts: yes
 

@@ -1,7 +1,6 @@
 ---
 - name: Docker Installation Playbook
-  hosts: 127.0.0.1
-  connection: local
+  hosts: all
   become: yes
   vars:
     docker_script_url: "https://get.docker.com"
