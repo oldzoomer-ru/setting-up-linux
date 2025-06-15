@@ -1,0 +1,28 @@
+#cloud-config
+autoinstall:
+  version: 1
+  locale: "ru_RU.UTF-8"
+  keyboard:
+    layout: us
+    variant: ""
+    toggle: caps_toggle
+  timezone: "Europe/Moscow"
+  interactive-sections:
+    - network
+    - identity
+    - storage
+  storage:
+    layout:
+      reset-partition: true
+  updates: all
+  # For Ansible remote setting up
+  ssh:
+    install-server: true
+    allow-pw: true
+  codecs:
+    install: true
+  drivers:
+    install: true
+  debconf-selections: |
+    openssh-server openssh-server/permit-root-login boolean false
+    ufw ufw/enable boolean true
