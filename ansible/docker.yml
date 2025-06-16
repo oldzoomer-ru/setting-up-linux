@@ -38,12 +38,18 @@
         enabled: yes
       when: docker_check.rc != 0
 
-    - name: Add user to docker group
+    - name: Get actual remote user
+      ansible.builtin.set_fact:
+        remote_user: "{{ ansible_user | default(ansible_ssh_user) | default(ansible_user_id) }}"
+
+    - name: Add remote user to docker group (if not root)
       ansible.builtin.user:
-        name: "{{ ansible_user_id }}"
+        name: "{{ remote_user }}"
         groups: docker
         append: yes
-      when: docker_check.rc != 0
+      when: 
+        - docker_check.rc != 0
+        - remote_user != "root"
 
     - name: Verify Docker components
       block:
