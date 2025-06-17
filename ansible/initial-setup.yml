@@ -24,21 +24,13 @@
 
     - name: Install Flatpak if not present
       block:
-        - name: Check Flatpak installation
-          ansible.builtin.command: "which flatpak"
-          register: flatpak_check
-          ignore_errors: yes
-          changed_when: false
-
         - name: Install Flatpak
           ansible.builtin.package:
             name: "flatpak"
             state: present
-          when: flatpak_check.rc != 0
 
         - name: Add Flathub remote
           ansible.builtin.command: "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
-          when: flatpak_check.rc != 0
 
     - name: Install Chrome
       block:
