@@ -104,12 +104,6 @@
             state: present
           when: ansible_os_family == "RedHat"
 
-        - name: Install Ubuntu restricted extras
-          ansible.builtin.package:
-            name: "ubuntu-restricted-extras"
-            state: present
-          when: ansible_distribution == "Ubuntu"
-
         - name: Install Debian codecs
           ansible.builtin.package:
             name:
