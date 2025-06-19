@@ -1,10 +1,11 @@
 #cloud-config
 autoinstall:
   version: 1
+  refresh-installer:
+    update: true
   locale: "ru_RU.UTF-8"
   keyboard:
-    layout: us
-    variant: ""
+    # US keyboard is default
     toggle: caps_toggle
   timezone: "Europe/Moscow"
   interactive-sections:
