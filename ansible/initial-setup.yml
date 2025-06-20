@@ -4,14 +4,14 @@
   become: yes
   vars:
     journald_limit: "50M"
-    package_urls:
-      chrome: "https://dl.google.com/linux/direct/google-chrome-stable_current_{{
-        'amd64.deb' if ansible_os_family == 'Debian' else 'x86_64.rpm'
-      }}"
-      rpmfusion:
-        free: "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
-        nonfree: "https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
-      mscorefonts: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
+    chrome_url:
+      Debian: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+      RedHat: "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
+    rpmfusion_url:
+      free: "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+      nonfree: "https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    mscorefonts_url: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
+    reboot_required: false
 
   tasks:
     - name: Configure journald log limits
@@ -22,72 +22,45 @@
         state: present
       notify: restart journald
 
-    - name: Install Flatpak if not present
-      block:
-        - name: Install Flatpak
-          ansible.builtin.package:
-            name: "flatpak"
-            state: present
+    - name: Flush handlers (journald)
+      meta: flush_handlers
 
-        - name: Add Flathub remote
-          ansible.builtin.command: "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+    - name: Install Flatpak
+      ansible.builtin.package:
+        name: flatpak
+        state: present
+      notify: request reboot
 
-    - name: Install Chrome
-      block:
-      - name: Download Chrome package
-        ansible.builtin.get_url:
-          url: "{{ package_urls.chrome }}"
-          dest: "/tmp/chrome_package.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
-          mode: '0644'
+    - name: Add Flathub remote
+      ansible.builtin.command: "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+      notify: request reboot
 
-      - name: Install Chrome package (Debian)
-        ansible.builtin.apt:
-          deb: "/tmp/chrome_package.deb"
-        when: ansible_os_family == 'Debian'
+    - name: Install Chrome (Debian)
+      ansible.builtin.apt:
+        deb: "{{ chrome_url.Debian }}"
+      when: ansible_os_family == 'Debian'
 
-      - name: Install Chrome package (RHEL)
-        ansible.builtin.yum:
-          name: "/tmp/chrome_package.rpm"
-          disable_gpg_check: yes
-        when: ansible_os_family == 'RedHat'
-
-      - name: Clean up Chrome package
-        ansible.builtin.file:
-          path: "/tmp/chrome_package.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
-          state: absent
-      when: ansible_os_family in ['Debian', 'RedHat']
+    - name: Install Chrome (RHEL)
+      ansible.builtin.dnf:
+        name: "{{ chrome_url.RedHat }}"
+      when: ansible_os_family == 'RedHat'
 
     - name: Configure RHEL repositories
       block:
         - name: Install RPM Fusion free repository
-          ansible.builtin.package:
-            name: "{{ package_urls.rpmfusion.free }}"
-            state: present
+          ansible.builtin.dnf:
+            name: "{{ rpmfusion_url.free }}"
+          notify: request reboot
 
         - name: Install RPM Fusion non-free repository
-          ansible.builtin.package:
-            name: "{{ package_urls.rpmfusion.nonfree }}"
-            state: present
+          ansible.builtin.dnf:
+            name: "{{ rpmfusion_url.nonfree }}"
+          notify: request reboot
       when: ansible_os_family == "RedHat"
 
-    - name: Install Microsoft Core Fonts from Sourceforge (RHEL/Fedora)
-      block:
-        - name: Download mscorefonts package
-          ansible.builtin.get_url:
-            url: "{{ package_urls.mscorefonts }}"
-            dest: "/tmp/msttcore-fonts-installer.rpm"
-            mode: '0644'
-
-        - name: Install mscorefonts package
-          ansible.builtin.yum:
-            name: "/tmp/msttcore-fonts-installer.rpm"
-            disable_gpg_check: yes
-            state: present
-
-        - name: Clean up mscorefonts package
-          ansible.builtin.file:
-            path: "/tmp/msttcore-fonts-installer.rpm"
-            state: absent
+    - name: Install Microsoft Core Fonts (RHEL)
+      ansible.builtin.dnf:
+        name: "{{ mscorefonts_url }}"
       when: ansible_os_family == "RedHat"
 
     - name: Install multimedia packages
@@ -95,24 +68,24 @@
         - name: Install RHEL codecs
           ansible.builtin.package:
             name:
-              - "ffmpeg"
-              - "gstreamer1-plugins-ugly"
-              - "gstreamer1-plugins-bad-free"
-              - "gstreamer1-plugins-bad-freeworld"
-              - "gstreamer1-plugins-good"
-              - "gstreamer1-plugins-base"
+              - ffmpeg
+              - gstreamer1-plugins-ugly
+              - gstreamer1-plugins-bad-free
+              - gstreamer1-plugins-bad-freeworld
+              - gstreamer1-plugins-good
+              - gstreamer1-plugins-base
             state: present
           when: ansible_os_family == "RedHat"
 
         - name: Install Debian codecs
           ansible.builtin.package:
             name:
-              - "ffmpeg"
-              - "libavcodec-extra"
-              - "gstreamer1.0-libav"
-              - "gstreamer1.0-plugins-ugly"
-              - "gstreamer1.0-plugins-good"
-              - "gstreamer1.0-plugins-bad"
+              - ffmpeg
+              - libavcodec-extra
+              - gstreamer1.0-libav
+              - gstreamer1.0-plugins-ugly
+              - gstreamer1.0-plugins-good
+              - gstreamer1.0-plugins-bad
             state: present
           when: ansible_os_family == "Debian"
 
@@ -130,9 +103,31 @@
             line: "options rtw88_core disable_lps_deep=y"
             create: yes
             state: present
+          notify: request reboot
+
+    - name: Clean up temporary packages
+      ansible.builtin.package:
+        autoremove: yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Flush handlers (final)
+      meta: flush_handlers
+
+    - name: Reboot system if required
+      ansible.builtin.reboot:
+        msg: "Reboot initiated by Ansible after system configuration changes"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+      when: reboot_required
 
   handlers:
     - name: restart journald
       ansible.builtin.systemd:
         name: "systemd-journald"
         state: restarted
+
+    - name: request reboot
+      ansible.builtin.set_fact:
+        reboot_required: true

@@ -1,71 +1,80 @@
 ---
-- name: Docker Installation Playbook
+- name: Install Docker via official repositories
   hosts: all
   become: yes
-  vars:
-    docker_script_url: "https://get.docker.com"
-    docker_script_path: "/tmp/get-docker.sh"
 
   tasks:
-    - name: Check for existing Docker installation
-      ansible.builtin.command: docker --version
-      register: docker_check
-      ignore_errors: yes
-      changed_when: false
+    - name: Determine package manager (APT or DNF)
+      ansible.builtin.set_fact:
+        pkg_manager: "{{ 'apt' if ansible_pkg_mgr == 'apt' else 'dnf' }}"
 
-    - name: Exit if Docker exists
-      ansible.builtin.fail:
-        msg: "Docker already installed: {{ docker_check.stdout }}"
-      when: docker_check.rc == 0
+    - name: Install prerequisites (APT)
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+      when: pkg_manager == 'apt'
 
-    - name: Download official Docker installer
-      ansible.builtin.get_url:
-        url: "{{ docker_script_url }}"
-        dest: "{{ docker_script_path }}"
-        mode: "0755"
-      when: docker_check.rc != 0
+    - name: Install prerequisites (DNF)
+      ansible.builtin.dnf:
+        name:
+          - dnf-plugins-core
+        state: present
+      when: pkg_manager == 'dnf'
 
-    - name: Run Docker installer
-      ansible.builtin.command: "{{ docker_script_path }}"
-      register: install_result
-      changed_when: "'docker is already installed' not in install_result.stdout"
-      when: docker_check.rc != 0
+    - name: Add Docker GPG key (APT)
+      ansible.builtin.apt_key:
+        url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+        state: present
+      when: pkg_manager == 'apt'
 
-    - name: Ensure Docker service is running
+    - name: Add Docker repository (APT)
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf', 'ppc64le': 'ppc64le'}[ansible_architecture] | default('amd64') }}] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+        update_cache: yes
+      when: pkg_manager == 'apt'
+
+    - name: Add Docker repository (DNF)
+      ansible.builtin.dnf_repository:
+        name: docker-ce
+        description: "Docker CE Stable"
+        baseurl: "https://download.docker.com/linux/{{ 'centos' if ansible_distribution == 'CentOS' else ansible_distribution | lower }}/$releasever/$basearch/stable"
+        gpgkey: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+        gpgcheck: yes
+        enabled: yes
+      when: pkg_manager == 'dnf'
+
+    - name: Install Docker packages
+      ansible.builtin.package:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Start and enable Docker service
       ansible.builtin.systemd:
         name: docker
         state: started
         enabled: yes
-      when: docker_check.rc != 0
 
-    - name: Get actual remote user
-      ansible.builtin.set_fact:
-        remote_user: "{{ ansible_user | default(ansible_ssh_user) | default(ansible_user_id) }}"
-
-    - name: Add remote user to docker group (if not root)
+    - name: Add current user to docker group
       ansible.builtin.user:
-        name: "{{ remote_user }}"
+        name: "{{ ansible_user | default(ansible_ssh_user) | default(ansible_user_id) }}"
         groups: docker
         append: yes
-      when: 
-        - docker_check.rc != 0
-        - remote_user != "root"
+      when: "ansible_user | default(ansible_ssh_user) | default(ansible_user_id) != 'root'"
+      notify: Notify about docker group changes
 
-    - name: Verify Docker components
-      block:
-        - name: Check Docker Engine
-          ansible.builtin.command: docker --version
-          register: docker_version
-          changed_when: false
-
-        - name: Check Docker Compose
-          ansible.builtin.command: docker compose version
-          register: compose_version
-          changed_when: false
-
-        - name: Show installation results
-          ansible.builtin.debug:
-            msg:
-              - "Docker Engine: {{ docker_version.stdout }}"
-              - "Docker Compose: {{ compose_version.stdout_lines[0] }}"
-      when: docker_check.rc != 0
+  handlers:
+    - name: Notify about docker group changes
+      ansible.builtin.debug:
+        msg: "User added to docker group. You need to logout and login again for changes to take effect."
