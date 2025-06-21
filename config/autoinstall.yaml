@@ -6,6 +6,7 @@ autoinstall:
   locale: "ru_RU.UTF-8"
   keyboard:
     # US keyboard is default
+    # in autoinstall.yaml
     toggle: caps_toggle
   timezone: "Europe/Moscow"
   interactive-sections:
@@ -13,7 +14,7 @@ autoinstall:
     - identity
     - storage
   updates: all
-  # For Ansible remote setting up
+  # For Ansible remote provisioning
   ssh:
     install-server: true
   codecs:
