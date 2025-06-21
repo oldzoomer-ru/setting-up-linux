@@ -11,6 +11,7 @@
       free: "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
       nonfree: "https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
     mscorefonts_url: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
+    epel_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
     reboot_required: false
 
   tasks:
@@ -47,6 +48,12 @@
 
     - name: Configure RHEL repositories
       block:
+        - name: Install EPEL repository (RHEL only)
+          ansible.builtin.dnf:
+            name: "{{ epel_url }}"
+            state: present
+          when: ansible_distribution != 'Fedora'
+
         - name: Install RPM Fusion free repository
           ansible.builtin.dnf:
             name: "{{ rpmfusion_url.free }}"
@@ -66,7 +73,7 @@
     - name: Install multimedia packages
       block:
         - name: Install RHEL codecs
-          ansible.builtin.package:
+          ansible.builtin.dnf:
             name:
               - ffmpeg
               - gstreamer1-plugins-ugly
@@ -78,7 +85,7 @@
           when: ansible_os_family == "RedHat"
 
         - name: Install Debian codecs
-          ansible.builtin.package:
+          ansible.builtin.apt:
             name:
               - ffmpeg
               - libavcodec-extra
@@ -88,6 +95,20 @@
               - gstreamer1.0-plugins-bad
             state: present
           when: ansible_os_family == "Debian"
+
+    - name: Install Timeshift
+      block:
+        - name: Install Timeshift on Debian
+          ansible.builtin.apt:
+            name: timeshift
+            state: present
+          when: ansible_os_family == 'Debian'
+
+        - name: Install Timeshift on RHEL
+          ansible.builtin.dnf:
+            name: timeshift
+            state: present
+          when: ansible_os_family == 'RedHat'
 
     - name: Configure kernel module
       block:
@@ -105,10 +126,21 @@
             state: present
           notify: request reboot
 
-    - name: Clean up temporary packages
-      ansible.builtin.package:
+    - name: Clean up temporary packages (Debian)
+      ansible.builtin.apt:
         autoremove: yes
+        autoclean: yes
       when: ansible_os_family == 'Debian'
+
+    - name: Clean up temporary packages (RHEL)
+      ansible.builtin.dnf:
+        autoremove: yes
+        clean_all: yes
+      when: ansible_os_family == 'RedHat'
+
+    - name: Clean up unused flatpak runtimes
+      ansible.builtin.command: flatpak uninstall --unused -y
+      ignore_errors: yes
 
     - name: Flush handlers (final)
       meta: flush_handlers
