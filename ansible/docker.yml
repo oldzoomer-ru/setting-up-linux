@@ -41,7 +41,7 @@
       when: pkg_manager == 'apt'
 
     - name: Add Docker repository (DNF)
-      ansible.builtin.dnf_repository:
+      ansible.builtin.yum_repository:
         name: docker-ce
         description: "Docker CE Stable"
         baseurl: "https://download.docker.com/linux/{{ 'centos' if ansible_distribution == 'CentOS' else ansible_distribution | lower }}/$releasever/$basearch/stable"
