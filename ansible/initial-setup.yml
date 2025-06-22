@@ -97,18 +97,9 @@
           when: ansible_os_family == "Debian"
 
     - name: Install Timeshift
-      block:
-        - name: Install Timeshift on Debian
-          ansible.builtin.apt:
-            name: timeshift
-            state: present
-          when: ansible_os_family == 'Debian'
-
-        - name: Install Timeshift on RHEL
-          ansible.builtin.dnf:
-            name: timeshift
-            state: present
-          when: ansible_os_family == 'RedHat'
+      ansible.builtin.package:
+        name: timeshift
+        state: present
 
     - name: Configure kernel module
       block:
