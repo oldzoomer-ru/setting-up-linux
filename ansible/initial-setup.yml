@@ -15,13 +15,29 @@
     reboot_required: false
 
   tasks:
-    - name: Configure journald
-      community.general.journald:
-        config:
-          SystemMaxUse: "{{ journald_limit }}"
-          Compress: "yes"
-          Storage: "persistent"
-        restart: yes
+    - name: Configure journald SystemMaxUse
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^#?SystemMaxUse='
+        line: 'SystemMaxUse={{ journald_limit }}'
+        backup: yes
+      notify: restart journald
+
+    - name: Configure journald compression
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^#?Compress='
+        line: 'Compress=yes'
+        backup: yes
+      notify: restart journald
+
+    - name: Configure journald storage
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^#?Storage='
+        line: 'Storage=persistent'
+        backup: yes
+      notify: restart journald
 
     - name: Install Flatpak
       ansible.builtin.package:
@@ -39,11 +55,14 @@
     - name: Install Chrome (Debian)
       ansible.builtin.apt:
         deb: "{{ chrome_url.Debian }}"
+        state: present
       when: ansible_os_family == 'Debian'
 
     - name: Install Chrome (RHEL)
       ansible.builtin.dnf:
         name: "{{ chrome_url.RedHat }}"
+        state: present
+        disable_gpg_check: yes
       when: ansible_os_family == 'RedHat'
 
     - name: Configure RHEL repositories
@@ -52,22 +71,29 @@
           ansible.builtin.dnf:
             name: "{{ epel_url }}"
             state: present
+            disable_gpg_check: yes
           when: ansible_distribution != 'Fedora'
 
         - name: Install RPM Fusion free repository
           ansible.builtin.dnf:
             name: "{{ rpmfusion_url.free }}"
+            state: present
+            disable_gpg_check: yes
           notify: request reboot
 
         - name: Install RPM Fusion non-free repository
           ansible.builtin.dnf:
             name: "{{ rpmfusion_url.nonfree }}"
+            state: present
+            disable_gpg_check: yes
           notify: request reboot
       when: ansible_os_family == "RedHat"
 
     - name: Install Microsoft Core Fonts (RHEL)
       ansible.builtin.dnf:
         name: "{{ mscorefonts_url }}"
+        state: present
+        disable_gpg_check: yes
       when: ansible_os_family == "RedHat"
 
     - name: Install multimedia packages
@@ -103,21 +129,21 @@
 
     - name: Configure rtw88 kernel module
       block:
-      - name: Ensure modprobe.d directory exists
-        ansible.builtin.file:
-          path: "/etc/modprobe.d"
-          state: directory
-          mode: "0755"
+        - name: Ensure modprobe.d directory exists
+          ansible.builtin.file:
+            path: "/etc/modprobe.d"
+            state: directory
+            mode: "0755"
 
-      - name: Set rtw88_core parameters using community.general
-        community.general.modprobe:
-          name: rtw88_core
-          params: "disable_lps_deep=y"
-          state: present
-          permanent: yes
-          permanent_file: "/etc/modprobe.d/rtw88_core.conf"
-        notify: request reboot
-      when: "'rtw88' in ansible_facts.kernel_modules"
+        - name: Set rtw88_core parameters using community.general
+          community.general.modprobe:
+            name: rtw88_core
+            params: "disable_lps_deep=y"
+            state: present
+            permanent: yes
+            permanent_file: "/etc/modprobe.d/rtw88_core.conf"
+          notify: request reboot
+      when: ansible_facts.kernel_modules is defined and 'rtw88' in ansible_facts.kernel_modules
 
     - name: Clean up temporary packages (Debian)
       ansible.builtin.apt:
@@ -128,13 +154,14 @@
     - name: Clean up temporary packages (RHEL)
       ansible.builtin.dnf:
         autoremove: yes
-        clean_all: yes
       when: ansible_os_family == 'RedHat'
 
     - name: Remove unused Flatpak runtimes
-      community.general.flatpak_remove:
-        unused: yes
-        state: absent
+      ansible.builtin.command:
+        cmd: flatpak uninstall --unused -y
+      register: flatpak_cleanup
+      changed_when: "'Nothing unused to uninstall' not in flatpak_cleanup.stdout"
+      failed_when: flatpak_cleanup.rc != 0 and 'Nothing unused to uninstall' not in flatpak_cleanup.stdout
 
     - name: Flush handlers (final)
       meta: flush_handlers
@@ -152,3 +179,8 @@
     - name: request reboot
       ansible.builtin.set_fact:
         reboot_required: true
+
+    - name: restart journald
+      ansible.builtin.systemd:
+        name: systemd-journald
+        state: restarted
