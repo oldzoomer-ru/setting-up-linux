@@ -15,16 +15,13 @@
     reboot_required: false
 
   tasks:
-    - name: Configure journald log limits
-      ansible.builtin.lineinfile:
-        path: "/etc/systemd/journald.conf"
-        regexp: "^SystemMaxUse="
-        line: "SystemMaxUse={{ journald_limit }}"
-        state: present
-      notify: restart journald
-
-    - name: Flush handlers (journald)
-      meta: flush_handlers
+    - name: Configure journald
+      community.general.journald:
+        config:
+          SystemMaxUse: "{{ journald_limit }}"
+          Compress: "yes"
+          Storage: "persistent"
+        restart: yes
 
     - name: Install Flatpak
       ansible.builtin.package:
@@ -32,8 +29,11 @@
         state: present
       notify: request reboot
 
-    - name: Add Flathub remote
-      ansible.builtin.command: "flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+    - name: Add Flathub remote (using community.general)
+      community.general.flatpak_remote:
+        name: flathub
+        flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
+        state: present
       notify: request reboot
 
     - name: Install Chrome (Debian)
@@ -101,21 +101,23 @@
         name: timeshift
         state: present
 
-    - name: Configure kernel module
+    - name: Configure rtw88 kernel module
       block:
-        - name: Create modprobe config directory
-          ansible.builtin.file:
-            path: "/etc/modprobe.d"
-            state: directory
-            mode: "0755"
+      - name: Ensure modprobe.d directory exists
+        ansible.builtin.file:
+          path: "/etc/modprobe.d"
+          state: directory
+          mode: "0755"
 
-        - name: Set rtw88_core parameter
-          ansible.builtin.lineinfile:
-            path: "/etc/modprobe.d/rtw88_core.conf"
-            line: "options rtw88_core disable_lps_deep=y"
-            create: yes
-            state: present
-          notify: request reboot
+      - name: Set rtw88_core parameters using community.general
+        community.general.modprobe:
+          name: rtw88_core
+          params: "disable_lps_deep=y"
+          state: present
+          permanent: yes
+          permanent_file: "/etc/modprobe.d/rtw88_core.conf"
+        notify: request reboot
+      when: "'rtw88' in ansible_facts.kernel_modules"
 
     - name: Clean up temporary packages (Debian)
       ansible.builtin.apt:
@@ -129,9 +131,10 @@
         clean_all: yes
       when: ansible_os_family == 'RedHat'
 
-    - name: Clean up unused flatpak runtimes
-      ansible.builtin.command: flatpak uninstall --unused -y
-      ignore_errors: yes
+    - name: Remove unused Flatpak runtimes
+      community.general.flatpak_remove:
+        unused: yes
+        state: absent
 
     - name: Flush handlers (final)
       meta: flush_handlers
@@ -146,11 +149,6 @@
       when: reboot_required
 
   handlers:
-    - name: restart journald
-      ansible.builtin.systemd:
-        name: "systemd-journald"
-        state: restarted
-
     - name: request reboot
       ansible.builtin.set_fact:
         reboot_required: true
