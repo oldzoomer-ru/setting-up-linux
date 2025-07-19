@@ -1,0 +1,34 @@
+---
+- name: Configure zRAM
+  hosts: all
+  become: true
+  vars:
+    zram_compression: zstd
+    zram_percentage: 100  # 100% of RAM
+
+  tasks:
+    - name: Install required packages
+      apt:
+        name: 
+          - zram-tools
+        state: latest
+        update_cache: yes
+
+    - name: Create optimized zRAM configuration
+      copy:
+        dest: /etc/default/zramswap
+        content: |
+          # Ansible managed
+          ALGO={{ zram_compression }}
+          PERCENT={{ zram_percentage }}
+          PRIORITY=100
+          # Additional optimizations
+          COMP_OPTS=""
+          SWAP_OPTS="--discard"
+
+    - name: Enable and restart zramswap service
+      systemd:
+        name: zramswap
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
