@@ -3,7 +3,6 @@
 {
   imports = [ ./hardware-configuration.nix ];
 
-  system.autoUpgrade.enable = true;
   system.copySystemConfiguration = true;
   system.stateVersion = "24.11";
 
@@ -32,11 +31,6 @@
 
   networking.hostName = "oldzoomer-laptop";
   networking.networkmanager.enable = true;
-  networking.firewall = {
-    allowedTCPPortRanges = [{ from = 1714; to = 1764; }];
-    allowedUDPPortRanges = [{ from = 1714; to = 1764; }];
-    allowPing = false;
-  };
 
   zramSwap.enable = true;
 
@@ -56,7 +50,6 @@
     };
   };
 
-  services.tlp.enable = true;
   services.pipewire = {
     enable = true;
     pulse.enable = true;
@@ -83,10 +76,6 @@
     EDITOR = "nano";
     VISUAL = "nano";
   };
-  
-  security.sudo.extraConfig = ''
-    Defaults editor=${pkgs.nano}/bin/nano
-  '';
 
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
@@ -96,38 +85,15 @@
     gnomeExtensions.vitals
     gnomeExtensions.appindicator
     gnomeExtensions.bing-wallpaper-changer
+    libreoffice-fresh jdk21 git vscode
   ];
 
   environment.gnome.excludePackages = with pkgs; [
     gnome-maps gnome-contacts geary gnome-calendar
     gnome-characters gnome-connections gnome-tour epiphany
+    simple-scan gnome-music snapshot file-roller gnome-font-viewer
   ];
 
   services.gnome.gnome-browser-connector.enable = true;
   programs.dconf.enable = true;
-
-  dconf.settings = {
-    "org/gnome/shell" = {
-      enabled-extensions = [
-        "gsconnect@andyholmes.github.io"
-        "Vitals@CoreCoding.com"
-        "appindicatorsupport@rgcjonas.gmail.com"
-        "BingWallpaper@ineffable-gmail.com"
-      ];
-    };
-    
-    "org/gnome/shell/extensions/bingwallpaper" = {
-      country = "ru";
-      change-interval = "hourly";
-    };
-    
-    "org/gnome/shell/extensions/vitals" = {
-      show-storage = true;
-      show-voltage = false;
-      show-network = true;
-      show-temperature = true;
-      show-memory = true;
-      show-processor = true;
-    };
-  };
 }

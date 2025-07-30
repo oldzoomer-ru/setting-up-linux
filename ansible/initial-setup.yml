@@ -21,6 +21,7 @@
         regexp: '^#?SystemMaxUse='
         line: 'SystemMaxUse={{ journald_limit }}'
         backup: yes
+        create: yes
       notify: restart journald
 
     - name: Configure journald compression
@@ -29,6 +30,7 @@
         regexp: '^#?Compress='
         line: 'Compress=yes'
         backup: yes
+        create: yes
       notify: restart journald
 
     - name: Configure journald storage
@@ -37,6 +39,7 @@
         regexp: '^#?Storage='
         line: 'Storage=persistent'
         backup: yes
+        create: yes
       notify: restart journald
 
     - name: Install Flatpak
@@ -128,22 +131,12 @@
         state: present
 
     - name: Configure rtw88 kernel module
-      block:
-        - name: Ensure modprobe.d directory exists
-          ansible.builtin.file:
-            path: "/etc/modprobe.d"
-            state: directory
-            mode: "0755"
-
-        - name: Set rtw88_core parameters using community.general
-          community.general.modprobe:
-            name: rtw88_core
-            params: "disable_lps_deep=y"
-            state: present
-            permanent: yes
-            permanent_file: "/etc/modprobe.d/rtw88_core.conf"
-          notify: request reboot
-      when: ansible_facts.kernel_modules is defined and 'rtw88' in ansible_facts.kernel_modules
+      community.general.modprobe:
+        name: rtw88_core
+        params: "disable_lps_deep=y"
+        state: present
+        persistent: present
+      notify: request reboot
 
     - name: Clean up temporary packages (Debian)
       ansible.builtin.apt:
@@ -155,13 +148,6 @@
       ansible.builtin.dnf:
         autoremove: yes
       when: ansible_os_family == 'RedHat'
-
-    - name: Remove unused Flatpak runtimes
-      ansible.builtin.command:
-        cmd: flatpak uninstall --unused -y
-      register: flatpak_cleanup
-      changed_when: "'Nothing unused to uninstall' not in flatpak_cleanup.stdout"
-      failed_when: flatpak_cleanup.rc != 0 and 'Nothing unused to uninstall' not in flatpak_cleanup.stdout
 
     - name: Flush handlers (final)
       meta: flush_handlers

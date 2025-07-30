@@ -9,7 +9,6 @@
       efi.canTouchEfiVariables = true;
     };
     tmp.useTmpfs = true;
-    extraModprobeConfig = ''options rtw88_core disable_lps_deep=y'';
     consoleLogLevel = 0;
     initrd.verbose = false;
     kernelParams = [
@@ -68,12 +67,7 @@
     qpdfview
     mpv
     htop
-    filelight
-    gnome-system-monitor
   ];
-
-  services.tlp.enable = true;
-  services.thermald.enable = true;
 
   security.rtkit.enable = true;
   services.pipewire = {
@@ -96,7 +90,7 @@
       dates = "weekly";
       options = "--delete-older-than 7d";
     };
-    settings.auto-optimise-store = true;
+    settings.auto-optimize-store = true;
   };
 
   system.stateVersion = "24.11";

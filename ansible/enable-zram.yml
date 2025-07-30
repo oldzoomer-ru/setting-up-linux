@@ -22,9 +22,6 @@
           ALGO={{ zram_compression }}
           PERCENT={{ zram_percentage }}
           PRIORITY=100
-          # Additional optimizations
-          COMP_OPTS=""
-          SWAP_OPTS="--discard"
 
     - name: Enable and restart zramswap service
       systemd:
