@@ -20,18 +20,21 @@
       "zswap.compressor=lz4"
       "zswap.max_pool_percent=20"
     ];
+    kernel.sysctl = {
+      "vm.dirty_bytes" = 2097152;
+      "vm.dirty_background_bytes" = 2097152;
+    };
+    supportedFilesystems = [ "ntfs" ];
   };
 
   services.journald.extraConfig = "SystemMaxUse=50M";
 
   zramSwap.enable = true;
-  boot.kernel.sysctl = {
-    "vm.swappiness" = 30;
-    "vm.vfs_cache_pressure" = 500;
-  };
 
   networking.hostName = "oldzoomer-laptop";
   networking.networkmanager.enable = true;
+  networking.firewall.enable = false;
+
   time.timeZone = "Europe/Moscow";
 
   i18n.defaultLocale = "ru_RU.UTF-8";
@@ -43,13 +46,7 @@
   services.xserver = {
     enable = true;
     desktopManager.lxde.enable = true;
-    displayManager = {
-      lightdm.enable = true;
-      autoLogin = {
-        enable = true;
-        user = "oldzoomer";
-      };
-    };
+    displayManager.lightdm.enable = true;
     windowManager.openbox.enable = true;
     xkb.layout = "us,ru";
     xkb.options = "grp:caps_toggle";
@@ -82,14 +79,9 @@
   };
 
   nixpkgs.config.allowUnfree = true;
-  security.sudo.extraConfig = ''Defaults timestamp_timeout=30'';
 
   nix = {
-    gc = {
-      automatic = true;
-      dates = "weekly";
-      options = "--delete-older-than 7d";
-    };
+    gc.automatic = true;
     settings.auto-optimize-store = true;
   };
 
