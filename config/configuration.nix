@@ -21,6 +21,13 @@
     "udev.log_priority=3"
   ];
 
+  boot.kernel.sysctl = {
+    "vm.dirty_bytes" = 2097152;
+    "vm.dirty_background_bytes" = 2097152;
+  };
+
+  boot.supportedFilesystems = [ "ntfs" ];
+
   boot.consoleLogLevel = 0;
   boot.initrd.verbose = false;
   boot.plymouth.enable = true;
@@ -31,6 +38,7 @@
 
   networking.hostName = "oldzoomer-laptop";
   networking.networkmanager.enable = true;
+  networking.firewall.enable = false;
 
   zramSwap.enable = true;
 
