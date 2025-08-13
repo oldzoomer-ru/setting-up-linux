@@ -1,0 +1,15 @@
+---
+- name: Disable OpenH264 repository and mask in Flatpak (system-wide)
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ensure OpenH264 repository is disabled
+      ansible.builtin.yum_repository:
+        name: cisco-openh264
+        enabled: no
+      when: ansible_distribution in ["Fedora", "RedHat", "CentOS", "Rocky"]
+
+    - name: Mask OpenH264 for Flatpak (system-wide)
+      ansible.builtin.command:
+        cmd: flatpak mask org.freedesktop.Platform.openh264 --system
+      ignore_errors: yes
