@@ -1,0 +1,26 @@
+---
+- name: Install RustDesk 1.4.1
+  hosts: all
+  become: yes
+  vars:
+    rustdesk_version: "1.4.1"
+    rustdesk_deb_url: "https://github.com/rustdesk/rustdesk/releases/download/{{ rustdesk_version }}/rustdesk-{{ rustdesk_version }}-x86_64.deb"
+    rustdesk_rpm_url: "https://github.com/rustdesk/rustdesk/releases/download/{{ rustdesk_version }}/rustdesk-{{ rustdesk_version }}-x86_64.rpm"
+
+  tasks:
+    - name: Check if RustDesk is already installed
+      command: which rustdesk
+      register: rustdesk_installed
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install RustDesk (Debian/Ubuntu)
+      ansible.builtin.apt:
+        deb: "{{ rustdesk_deb_url }}"
+      when: ansible_os_family == 'Debian' and rustdesk_installed.rc != 0
+
+    - name: Install RustDesk (RHEL/CentOS/Fedora)
+      ansible.builtin.yum:
+        name: "{{ rustdesk_rpm_url }}"
+        state: present
+      when: ansible_os_family == 'RedHat' and rustdesk_installed.rc != 0
