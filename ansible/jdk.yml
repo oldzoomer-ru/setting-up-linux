@@ -12,24 +12,15 @@
       ansible.builtin.setup:
         filter: ansible_os_family
 
-    - name: Install JDK 21 on Debian-based systems
+    - name: Install JDK on Debian-based systems
       ansible.builtin.apt:
         name: "{{ openjdk_package_debian }}"
         state: present
         update_cache: yes
       when: ansible_os_family == 'Debian'
 
-    - name: Install JDK 21 on Red Hat-based systems
+    - name: Install JDK on Red Hat-based systems
       ansible.builtin.yum:
         name: "{{ openjdk_package_redhat }}"
         state: present
       when: ansible_os_family == 'RedHat'
-
-    - name: Verify Java installation
-      ansible.builtin.command: java -version
-      register: java_version
-      changed_when: false
-
-    - name: Display Java version
-      ansible.builtin.debug:
-        var: java_version.stderr_lines
