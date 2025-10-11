@@ -1,7 +1,6 @@
 ---
 - name: Install LibreOffice via Flatpak using Ansible Community module
   hosts: all
-  become: yes
   tasks:
     - name: Install LibreOffice from Flathub
       community.general.flatpak:
