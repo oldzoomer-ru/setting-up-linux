@@ -87,13 +87,12 @@
 
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
-    wget htop tree efibootmgr nano
-    docker-compose google-chrome
+    wget htop tree efibootmgr
+    nano docker-compose git
     gnomeExtensions.gsconnect
     gnomeExtensions.vitals
     gnomeExtensions.appindicator
     gnomeExtensions.bing-wallpaper-changer
-    libreoffice-fresh jdk21 git vscode
   ];
 
   environment.gnome.excludePackages = with pkgs; [
