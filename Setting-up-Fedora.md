@@ -26,13 +26,7 @@ sudo snap install hello-world
 hello-world
 ```
 
-### VLC
-
-```shell
-sudo dnf install vlc
-```
-
-### Создание видео
+### Создание контента
 
 #### OBS Studio
 
@@ -99,42 +93,10 @@ sudo usermod -aG vboxusers $USER
 
 ### Разработка
 
-#### XAMPP (если вам не хочется Docker'а)
-
-Ставим зависимости:
+#### DBeaver
 
 ```shell
-sudo dnf install libnsl libxcrypt-compat
-```
-
-Далее качаем XAMPP с официального сайта (<https://www.apachefriends.org/ru/index.html>),
-и устанавливаем его:
-
-```shell
-chmod 755 xampp-linux-*-installer.run
-sudo ./xampp-linux-*-installer.run
-```
-
-И запускаем:
-
-```shell
-sudo /opt/lampp/lampp start
-```
-
-Остановка:
-
-```shell
-sudo /opt/lampp/lampp stop
-```
-
-Для удобной работы с ним, делаем следующие команды:
-
-```shell
-cd /opt/lampp
-sudo chown $USER:$USER htdocs
-chmod 775 htdocs
-cd
-ln -s /opt/lampp/htdocs/ ~/htdocs
+flatpak install flathub io.dbeaver.DBeaverCommunity
 ```
 
 #### Node.js

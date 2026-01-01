@@ -33,13 +33,7 @@ sudo snap install hello-world
 hello-world
 ```
 
-### VLC
-
-```shell
-flatpak install flathub org.videolan.VLC
-```
-
-### Создание видео
+### Создание контента
 
 #### OBS Studio
 
@@ -105,38 +99,6 @@ sudo usermod -aG vboxusers $USER
 
 ```shell
 flatpak install flathub io.dbeaver.DBeaverCommunity
-```
-
-##### XAMPP (если вам не хочется Docker'а)
-
-Качаем XAMPP с официального сайта (<https://www.apachefriends.org/ru/index.html>),
-и устанавливаем его:
-
-```shell
-chmod 755 xampp-linux-*-installer.run
-sudo ./xampp-linux-*-installer.run
-```
-
-И запускаем:
-
-```shell
-sudo /opt/lampp/lampp start
-```
-
-Остановка:
-
-```shell
-sudo /opt/lampp/lampp stop
-```
-
-Для удобной работы с ним, делаем следующие команды:
-
-```shell
-cd /opt/lampp
-sudo chown $USER:$USER htdocs
-chmod 775 htdocs
-cd
-ln -s /opt/lampp/htdocs/ ~/htdocs
 ```
 
 #### Node.js
