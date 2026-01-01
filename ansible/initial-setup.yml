@@ -3,166 +3,200 @@
   hosts: all
   become: yes
   vars:
-    journald_limit: "50M"
     chrome_url:
       Debian: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
       RedHat: "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
-    rpmfusion_url:
-      free: "https://download1.rpmfusion.org/free/el/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
-      nonfree: "https://download1.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
-    mscorefonts_url: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
+
+    rpmfusion_free_url: >-
+      {{
+        'https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
+        if ansible_distribution == 'Fedora'
+        else 'https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
+      }}
+    rpmfusion_nonfree_url: >-
+      {{
+        'https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
+        if ansible_distribution == 'Fedora'
+        else 'https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
+      }}
+
     epel_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
-    reboot_required: false
+    mscorefonts_url: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
 
   tasks:
-    - name: Configure journald SystemMaxUse
-      ansible.builtin.lineinfile:
-        path: /etc/systemd/journald.conf
-        regexp: '^#?SystemMaxUse='
-        line: 'SystemMaxUse={{ journald_limit }}'
-        backup: yes
-        create: yes
-      notify: restart journald
+    - name: Initialize reboot flag
+      ansible.builtin.set_fact:
+        reboot_required: false
 
-    - name: Configure journald compression
-      ansible.builtin.lineinfile:
-        path: /etc/systemd/journald.conf
-        regexp: '^#?Compress='
-        line: 'Compress=yes'
-        backup: yes
-        create: yes
-      notify: restart journald
-
-    - name: Configure journald storage
-      ansible.builtin.lineinfile:
-        path: /etc/systemd/journald.conf
-        regexp: '^#?Storage='
-        line: 'Storage=persistent'
-        backup: yes
-        create: yes
-      notify: restart journald
-
+    # === Flatpak ===
     - name: Install Flatpak
       ansible.builtin.package:
         name: flatpak
         state: present
-      notify: request reboot
+      notify: mark reboot required
 
-    - name: Add Flathub remote (using community.general)
+    - name: Add Flathub remote
       community.general.flatpak_remote:
         name: flathub
         flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
         state: present
-      notify: request reboot
+      notify: mark reboot required
 
-    - name: Install Chrome (Debian)
-      ansible.builtin.apt:
-        deb: "{{ chrome_url.Debian }}"
-        state: present
+    # === Google Chrome ===
+    - name: Install Google Chrome on Debian-based systems
+      block:
+        - name: Download Chrome .deb
+          ansible.builtin.get_url:
+            url: "{{ chrome_url.Debian }}"
+            dest: /tmp/google-chrome-stable.deb
+            mode: '0644'
+        - name: Install Chrome .deb
+          ansible.builtin.apt:
+            deb: /tmp/google-chrome-stable.deb
+            state: present
       when: ansible_os_family == 'Debian'
 
-    - name: Install Chrome (RHEL)
-      ansible.builtin.dnf:
-        name: "{{ chrome_url.RedHat }}"
-        state: present
-        disable_gpg_check: yes
+    - name: Install Google Chrome on RedHat-based systems
+      block:
+        - name: Download Chrome .rpm
+          ansible.builtin.get_url:
+            url: "{{ chrome_url.RedHat }}"
+            dest: /tmp/google-chrome-stable.rpm
+            mode: '0644'
+        - name: Install Chrome .rpm
+          ansible.builtin.dnf:
+            name: /tmp/google-chrome-stable.rpm
+            state: present
       when: ansible_os_family == 'RedHat'
 
-    - name: Configure RHEL repositories
+    # === Ubuntu Restricted Extras ===
+    - name: Pre-accept MS fonts EULA for ubuntu-restricted-extras
+      ansible.builtin.debconf:
+        name: msttcorefonts
+        question: msttcorefonts/accepted-mscorefonts-eula
+        value: "true"
+        vtype: select
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Install ubuntu-restricted-extras (Ubuntu only)
+      ansible.builtin.apt:
+        name: ubuntu-restricted-extras
+        state: present
+        update_cache: yes
+      when: ansible_distribution == 'Ubuntu'
+
+    # === Microsoft Core Fonts on Debian ===
+    - name: Pre-accept MS fonts EULA on Debian
+      ansible.builtin.debconf:
+        name: ttf-mscorefonts-installer
+        question: msttcorefonts/accepted-mscorefonts-eula
+        value: "true"
+        vtype: select
+      when: ansible_distribution == 'Debian'
+
+    - name: Install Microsoft Core Fonts on Debian
+      ansible.builtin.apt:
+        name: ttf-mscorefonts-installer
+        state: present
+      when: ansible_distribution == 'Debian'
+
+    # === Multimedia Codecs on Debian ===
+    - name: Install multimedia codecs on Debian
+      ansible.builtin.apt:
+        name:
+          - ffmpeg
+          - gstreamer1.0-plugins-base
+          - gstreamer1.0-plugins-good
+          - gstreamer1.0-plugins-bad
+          - gstreamer1.0-plugins-ugly
+          - gstreamer1.0-libav
+          - libavcodec-extra
+        state: present
+      when: ansible_distribution == 'Debian'
+
+    # === Repositories for RedHat family ===
+    - name: Configure additional repositories (RHEL/Fedora family)
+      when: ansible_os_family == 'RedHat'
       block:
-        - name: Install EPEL repository (RHEL only)
+        - name: Install EPEL repository (skip on Fedora)
           ansible.builtin.dnf:
             name: "{{ epel_url }}"
             state: present
             disable_gpg_check: yes
           when: ansible_distribution != 'Fedora'
 
-        - name: Install RPM Fusion free repository
+        - name: Install RPM Fusion Free repository
           ansible.builtin.dnf:
-            name: "{{ rpmfusion_url.free }}"
+            name: "{{ rpmfusion_free_url }}"
             state: present
             disable_gpg_check: yes
-          notify: request reboot
+          notify: mark reboot required
 
-        - name: Install RPM Fusion non-free repository
+        - name: Install RPM Fusion Non-Free repository
           ansible.builtin.dnf:
-            name: "{{ rpmfusion_url.nonfree }}"
+            name: "{{ rpmfusion_nonfree_url }}"
             state: present
             disable_gpg_check: yes
-          notify: request reboot
-      when: ansible_os_family == "RedHat"
+          notify: mark reboot required
 
-    - name: Install Microsoft Core Fonts (RHEL)
-      ansible.builtin.dnf:
-        name: "{{ mscorefonts_url }}"
-        state: present
-        disable_gpg_check: yes
-      when: ansible_os_family == "RedHat"
+        - name: Update DNF cache after adding repos
+          ansible.builtin.dnf:
+            update_cache: yes
 
-    - name: Install multimedia packages
+    # === Microsoft Core Fonts on RHEL family ===
+    - name: Install Microsoft Core Fonts on RedHat-based systems
+      when: ansible_os_family == 'RedHat'
       block:
-        - name: Install RHEL codecs
+        - name: Download msttcore-fonts-installer RPM
+          ansible.builtin.get_url:
+            url: "{{ mscorefonts_url }}"
+            dest: /tmp/msttcore-fonts-installer.rpm
+            mode: '0644'
+        - name: Install Microsoft TrueType core fonts
           ansible.builtin.dnf:
-            name:
-              - ffmpeg
-              - gstreamer1-plugins-ugly
-              - gstreamer1-plugins-bad-free
-              - gstreamer1-plugins-bad-freeworld
-              - gstreamer1-plugins-good
-              - gstreamer1-plugins-base
+            name: /tmp/msttcore-fonts-installer.rpm
             state: present
-          when: ansible_os_family == "RedHat"
 
-        - name: Install Debian codecs
-          ansible.builtin.apt:
-            name:
-              - ffmpeg
-              - libavcodec-extra
-              - gstreamer1.0-libav
-              - gstreamer1.0-plugins-ugly
-              - gstreamer1.0-plugins-good
-              - gstreamer1.0-plugins-bad
-            state: present
-          when: ansible_os_family == "Debian"
+    # === Multimedia Codecs on RHEL/Fedora ===
+    - name: Install multimedia codecs on RedHat-based systems
+      ansible.builtin.dnf:
+        name:
+          - ffmpeg
+          - gstreamer1-plugins-ugly
+          - gstreamer1-plugins-bad-free
+          - gstreamer1-plugins-bad-freeworld
+          - gstreamer1-plugins-good
+          - gstreamer1-plugins-base
+        state: present
+      when: ansible_os_family == 'RedHat'
 
+    # === Timeshift ===
     - name: Install Timeshift
       ansible.builtin.package:
         name: timeshift
         state: present
 
-    - name: Configure rtw88 kernel module
-      community.general.modprobe:
-        name: rtw88_core
-        params: "disable_lps_deep=y"
-        state: present
-        persistent: present
-      notify: request reboot
-
-    - name: Clean up temporary packages (Debian)
+    # === Cleanup (Debian/Ubuntu) ===
+    - name: Autoremove and autoclean (Debian family)
       ansible.builtin.apt:
         autoremove: yes
         autoclean: yes
       when: ansible_os_family == 'Debian'
 
-    - name: Clean up temporary packages (RHEL)
-      ansible.builtin.dnf:
-        autoremove: yes
-      when: ansible_os_family == 'RedHat'
-
-    - name: Flush handlers (final)
+    # === Finalize ===
+    - name: Flush all pending handlers
       meta: flush_handlers
 
     - name: Reboot system if required
       ansible.builtin.reboot:
-        msg: "Reboot initiated by Ansible after system configuration changes"
+        msg: "Reboot initiated by Ansible after system configuration"
         connect_timeout: 5
         reboot_timeout: 600
-        pre_reboot_delay: 0
         post_reboot_delay: 30
-      when: reboot_required
+      when: reboot_required | default(false)
 
   handlers:
-    - name: request reboot
+    - name: mark reboot required
       ansible.builtin.set_fact:
         reboot_required: true
 

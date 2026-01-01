@@ -1,15 +1,31 @@
 ---
-- name: Disable OpenH264 repository and mask in Flatpak (system-wide)
+- name: Disable OpenH264 repository and mask it in Flatpak (system-wide)
   hosts: all
   become: yes
+  vars:
+    openh264_flatpak_id: org.freedesktop.Platform.openh264
   tasks:
-    - name: Ensure OpenH264 repository is disabled
+    - name: Disable OpenH264 repository (RPM-based systems)
       ansible.builtin.yum_repository:
         name: cisco-openh264
-        enabled: no
-      when: ansible_distribution in ["Fedora", "RedHat", "CentOS", "Rocky"]
+        enabled: false
+      when:
+        - ansible_os_family == "RedHat"
+        - ansible_distribution not in ["Amazon"]
 
-    - name: Mask OpenH264 for Flatpak (system-wide)
+    - name: Check if Flatpak is installed
+      ansible.builtin.package_facts:
+        manager: auto
+      changed_when: false
+
+    - name: Mask OpenH264 in Flatpak (system-wide)
       ansible.builtin.command:
-        cmd: flatpak mask org.freedesktop.Platform.openh264 --system
-      ignore_errors: yes
+        cmd: flatpak mask {{ openh264_flatpak_id }} --system
+      environment:
+        LANG: C.UTF-8
+      register: flatpak_mask_result
+      changed_when: "'nothing to mask' not in flatpak_mask_result.stderr"
+      failed_when: flatpak_mask_result.rc not in [0, 1]  # rc=1 may mean already masked
+      when:
+        - "'flatpak' in ansible_facts.packages"
+        - ansible_virtualization_type != "docker"  # avoid in containers unless needed

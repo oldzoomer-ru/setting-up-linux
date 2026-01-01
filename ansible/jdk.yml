@@ -1,9 +1,9 @@
 ---
-- name: Install JDK 21 on Debian and Red Hat based systems
+- name: Install JDK on Debian and Red Hat based systems
   hosts: all
   become: yes
   vars:
-    jdk_version: 21
+    jdk_version: 25
     openjdk_package_debian: "openjdk-{{ jdk_version }}-jdk"
     openjdk_package_redhat: "java-{{ jdk_version }}-openjdk-devel"
 

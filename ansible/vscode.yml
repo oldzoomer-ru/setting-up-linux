@@ -4,76 +4,77 @@
   become: yes
   gather_facts: yes
 
-  tasks:
-    - name: Verify supported distribution
-      ansible.builtin.assert:
-        that: ansible_facts['os_family'] in ['Debian', 'RedHat']
-        msg: "Only Debian/Ubuntu and RHEL/CentOS/RockyLinux/AlmaLinux are supported"
+  vars:
+    vscode_deb_repo_url: "https://packages.microsoft.com/repos/vscode"
+    vscode_rpm_repo_url: "https://packages.microsoft.com/yumrepos/vscode"
+    microsoft_gpg_key_url: "https://packages.microsoft.com/keys/microsoft.asc"
+    vscode_deb_keyring_path: /usr/share/keyrings/microsoft-archive-keyring.gpg
 
+  tasks:
     # Common prerequisites
-    - name: Install curl (all systems)
+    - name: Ensure curl is installed
       ansible.builtin.package:
         name: curl
         state: present
 
-    # Debian/Ubuntu specific tasks
-    - name: Install APT prerequisites
+    # Debian/Ubuntu
+    - name: Install APT prerequisites (Debian family)
       ansible.builtin.package:
         name:
-          - gpg
+          - gnupg
           - apt-transport-https
+          - ca-certificates
         state: present
-      when: ansible_facts['os_family'] == 'Debian'
+      when: ansible_facts.os_family == 'Debian'
 
-    - name: Download Microsoft GPG key
+    - name: Download Microsoft GPG key to temporary location (Debian)
       ansible.builtin.get_url:
-        url: https://packages.microsoft.com/keys/microsoft.asc
+        url: "{{ microsoft_gpg_key_url }}"
         dest: /tmp/microsoft.asc
-        mode: '0644'
-      when: ansible_facts['os_family'] == 'Debian'
+        mode: '0600'
+      when: ansible_facts.os_family == 'Debian'
 
-    - name: Dearmor and install GPG key (Debian/Ubuntu)
+    - name: Convert and install Microsoft GPG keyring (Deb)
       ansible.builtin.shell: |
-        gpg --dearmor /tmp/microsoft.asc
-        mv /tmp/microsoft.asc.gpg /usr/share/keyrings/microsoft.gpg
-        chmod 644 /usr/share/keyrings/microsoft.gpg
+        gpg --dearmor < /tmp/microsoft.asc > "{{ vscode_deb_keyring_path }}"
       args:
-        creates: /usr/share/keyrings/microsoft.gpg
-      when: ansible_facts['os_family'] == 'Debian'
+        creates: "{{ vscode_deb_keyring_path }}"
+      when: ansible_facts.os_family == 'Debian'
 
-    - name: Clean up temporary key file
+    - name: Clean up temporary GPG key file (Debian)
       ansible.builtin.file:
         path: /tmp/microsoft.asc
         state: absent
-      when: ansible_facts['os_family'] == 'Debian'
+      when: ansible_facts.os_family == 'Debian'
 
-    - name: Add VS Code repository (Debian/Ubuntu)
+    - name: Add Visual Studio Code APT repository (Debian)
       ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/vscode stable main"
+        repo: "deb [arch=amd64 signed-by={{ vscode_deb_keyring_path }}] {{ vscode_deb_repo_url }} stable main"
         state: present
         filename: vscode
         update_cache: yes
-      when: ansible_facts['os_family'] == 'Debian'
+      when: ansible_facts.os_family == 'Debian'
 
-    # RHEL/CentOS specific tasks
+    # RHEL/CentOS/Rocky/AlmaLinux — original GPG key handling
     - name: Import Microsoft GPG key (RPM)
       ansible.builtin.rpm_key:
         state: present
-        key: https://packages.microsoft.com/keys/microsoft.asc
-      when: ansible_facts['os_family'] == 'RedHat'
+        key: "{{ microsoft_gpg_key_url }}"
+      when: ansible_facts.os_family == 'RedHat'
 
-    - name: Add VS Code repository (RHEL-based)
+    - name: Add Visual Studio Code YUM/DNF repository (RHEL family)
       ansible.builtin.yum_repository:
         name: vscode
-        description: "Visual Studio Code"
-        baseurl: https://packages.microsoft.com/yumrepos/vscode
-        enabled: yes
-        gpgcheck: yes
-        gpgkey: https://packages.microsoft.com/keys/microsoft.asc
-        repo_gpgcheck: yes
-      when: ansible_facts['os_family'] == 'RedHat'
+        description: Visual Studio Code
+        baseurl: "{{ vscode_rpm_repo_url }}"
+        enabled: true
+        gpgcheck: true
+        gpgkey: "{{ microsoft_gpg_key_url }}"
+        repo_gpgcheck: true
+      when: ansible_facts.os_family == 'RedHat'
 
-    - name: Install VS Code package
+    # Common install step
+    - name: Install Visual Studio Code
       ansible.builtin.package:
         name: code
         state: latest
