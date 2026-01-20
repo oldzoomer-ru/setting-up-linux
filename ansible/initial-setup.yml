@@ -170,12 +170,6 @@
         state: present
       when: ansible_os_family == 'RedHat'
 
-    # === Timeshift ===
-    - name: Install Timeshift
-      ansible.builtin.package:
-        name: timeshift
-        state: present
-
     # === Cleanup (Debian/Ubuntu) ===
     - name: Autoremove and autoclean (Debian family)
       ansible.builtin.apt:
