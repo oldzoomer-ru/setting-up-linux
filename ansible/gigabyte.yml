@@ -1,0 +1,62 @@
+---
+- name: Deploy custom keyboard mappings (hwdb + keyd)
+  hosts: all
+  become: true
+  tasks:
+    - name: Deploy hwdb rule for Gigabyte keyboard
+      copy:
+        content: |
+          evdev:input:b0003v0414p8104e0111*
+           KEYBOARD_KEY_7006f=fn
+           KEYBOARD_KEY_70067=sysrq
+        dest: /etc/udev/hwdb.d/99-gigabyte.hwdb
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Update hwdb cache
+      command: systemd-hwdb update
+      changed_when: false
+
+    - name: Trigger udev reload
+      command: udevadm trigger
+      changed_when: false
+
+    - name: Ensure keyd config directory exists
+      file:
+        path: /etc/keyd
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Deploy keyd copilot.conf
+      copy:
+        content: |
+          [ids]
+          *
+          [main]
+          f23+leftshift+leftmeta = insert
+        dest: /etc/keyd/copilot.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Deploy keyd screenshot.conf
+      copy:
+        content: |
+          [ids]
+          *
+          [main]
+          s+leftshift+leftmeta = print
+        dest: /etc/keyd/screenshot.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Restart keyd if running
+      systemd:
+        name: keyd
+        state: restarted
+        enabled: false
+      ignore_errors: true
