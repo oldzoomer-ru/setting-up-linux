@@ -23,102 +23,97 @@
     epel_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
     mscorefonts_url: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
 
+    multimedia_packages_debian:
+      - ffmpeg
+      - gstreamer1.0-plugins-base
+      - gstreamer1.0-plugins-good
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-plugins-ugly
+      - gstreamer1.0-libav
+      - libavcodec-extra
+
+    multimedia_packages_redhat:
+      - ffmpeg
+      - gstreamer1-plugins-ugly
+      - gstreamer1-plugins-bad-free
+      - gstreamer1-plugins-bad-freeworld
+      - gstreamer1-plugins-good
+      - gstreamer1-plugins-base
+
   tasks:
-    - name: Initialize reboot flag
-      ansible.builtin.set_fact:
-        reboot_required: false
-
     # === Flatpak ===
-    - name: Install Flatpak
-      ansible.builtin.package:
-        name: flatpak
-        state: present
-      notify: mark reboot required
+    - name: Install Flatpak and add Flathub
+      when: ansible_os_family in ['Debian', 'RedHat']
+      block:
+        - name: Install flatpak package
+          ansible.builtin.package:
+            name: flatpak
+            state: present
 
-    - name: Add Flathub remote
-      community.general.flatpak_remote:
-        name: flathub
-        flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
-        state: present
-      notify: mark reboot required
+        - name: Add Flathub remote
+          community.general.flatpak_remote:
+            name: flathub
+            flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
+            state: present
 
     # === Google Chrome ===
-    - name: Install Google Chrome on Debian-based systems
+    - name: Install Google Chrome
+      when: ansible_os_family in ['Debian', 'RedHat']
       block:
-        - name: Download Chrome .deb
+        - name: Download Chrome package
           ansible.builtin.get_url:
-            url: "{{ chrome_url.Debian }}"
-            dest: /tmp/google-chrome-stable.deb
+            url: "{{ chrome_url[ansible_os_family] }}"
+            dest: "/tmp/google-chrome-stable.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
             mode: '0644'
-        - name: Install Chrome .deb
+
+        - name: Install Chrome on Debian-based systems
           ansible.builtin.apt:
-            deb: /tmp/google-chrome-stable.deb
+            deb: "/tmp/google-chrome-stable.deb"
+          when: ansible_os_family == 'Debian'
+
+        - name: Install Chrome on RedHat-based systems
+          ansible.builtin.dnf:
+            name: "/tmp/google-chrome-stable.rpm"
             state: present
+          when: ansible_os_family == 'RedHat'
+
+    # === Microsoft Core Fonts ===
+    - name: Accept MS fonts EULA on Debian-based systems
+      ansible.builtin.debconf:
+        name: "{{ 'msttcorefonts' if ansible_distribution == 'Ubuntu' else 'ttf-mscorefonts-installer' }}"
+        question: msttcorefonts/accepted-mscorefonts-eula
+        value: "true"
+        vtype: select
       when: ansible_os_family == 'Debian'
 
-    - name: Install Google Chrome on RedHat-based systems
+    - name: Install Microsoft Core Fonts
+      when: ansible_os_family in ['Debian', 'RedHat']
       block:
-        - name: Download Chrome .rpm
-          ansible.builtin.get_url:
-            url: "{{ chrome_url.RedHat }}"
-            dest: /tmp/google-chrome-stable.rpm
-            mode: '0644'
-        - name: Install Chrome .rpm
-          ansible.builtin.dnf:
-            name: /tmp/google-chrome-stable.rpm
+        - name: Install via APT (Debian/Ubuntu)
+          ansible.builtin.apt:
+            name: "{{ 'ubuntu-restricted-extras' if ansible_distribution == 'Ubuntu' else 'ttf-mscorefonts-installer' }}"
             state: present
-      when: ansible_os_family == 'RedHat'
+            update_cache: yes
+          when: ansible_os_family == 'Debian'
 
-    # === Ubuntu Restricted Extras ===
-    - name: Pre-accept MS fonts EULA for ubuntu-restricted-extras
-      ansible.builtin.debconf:
-        name: msttcorefonts
-        question: msttcorefonts/accepted-mscorefonts-eula
-        value: "true"
-        vtype: select
-      when: ansible_distribution == 'Ubuntu'
+        - name: Install via DNF (RHEL/Fedora)
+          when: ansible_os_family == 'RedHat'
+          block:
+            - name: Download msttcore-fonts RPM
+              ansible.builtin.get_url:
+                url: "{{ mscorefonts_url }}"
+                dest: /tmp/msttcore-fonts-installer.rpm
+                mode: '0644'
+            - name: Install msttcore-fonts RPM
+              ansible.builtin.dnf:
+                name: /tmp/msttcore-fonts-installer.rpm
+                state: present
 
-    - name: Install ubuntu-restricted-extras (Ubuntu only)
-      ansible.builtin.apt:
-        name: ubuntu-restricted-extras
-        state: present
-        update_cache: yes
-      when: ansible_distribution == 'Ubuntu'
-
-    # === Microsoft Core Fonts on Debian ===
-    - name: Pre-accept MS fonts EULA on Debian
-      ansible.builtin.debconf:
-        name: ttf-mscorefonts-installer
-        question: msttcorefonts/accepted-mscorefonts-eula
-        value: "true"
-        vtype: select
-      when: ansible_distribution == 'Debian'
-
-    - name: Install Microsoft Core Fonts on Debian
-      ansible.builtin.apt:
-        name: ttf-mscorefonts-installer
-        state: present
-      when: ansible_distribution == 'Debian'
-
-    # === Multimedia Codecs on Debian ===
-    - name: Install multimedia codecs on Debian
-      ansible.builtin.apt:
-        name:
-          - ffmpeg
-          - gstreamer1.0-plugins-base
-          - gstreamer1.0-plugins-good
-          - gstreamer1.0-plugins-bad
-          - gstreamer1.0-plugins-ugly
-          - gstreamer1.0-libav
-          - libavcodec-extra
-        state: present
-      when: ansible_distribution == 'Debian'
-
-    # === Repositories for RedHat family ===
-    - name: Configure additional repositories (RHEL/Fedora family)
+    # === Extra Repositories for RedHat family ===
+    - name: Configure additional repositories (RHEL/Fedora)
       when: ansible_os_family == 'RedHat'
       block:
-        - name: Install EPEL repository (skip on Fedora)
+        - name: Install EPEL (RHEL/CentOS only)
           ansible.builtin.dnf:
             name: "{{ epel_url }}"
             state: present
@@ -130,71 +125,26 @@
             name: "{{ rpmfusion_free_url }}"
             state: present
             disable_gpg_check: yes
-          notify: mark reboot required
 
         - name: Install RPM Fusion Non-Free repository
           ansible.builtin.dnf:
             name: "{{ rpmfusion_nonfree_url }}"
             state: present
             disable_gpg_check: yes
-          notify: mark reboot required
 
-        - name: Update DNF cache after adding repos
+        - name: Refresh DNF cache
           ansible.builtin.dnf:
             update_cache: yes
 
-    # === Microsoft Core Fonts on RHEL family ===
-    - name: Install Microsoft Core Fonts on RedHat-based systems
-      when: ansible_os_family == 'RedHat'
-      block:
-        - name: Download msttcore-fonts-installer RPM
-          ansible.builtin.get_url:
-            url: "{{ mscorefonts_url }}"
-            dest: /tmp/msttcore-fonts-installer.rpm
-            mode: '0644'
-        - name: Install Microsoft TrueType core fonts
-          ansible.builtin.dnf:
-            name: /tmp/msttcore-fonts-installer.rpm
-            state: present
-
-    # === Multimedia Codecs on RHEL/Fedora ===
-    - name: Install multimedia codecs on RedHat-based systems
-      ansible.builtin.dnf:
-        name:
-          - ffmpeg
-          - gstreamer1-plugins-ugly
-          - gstreamer1-plugins-bad-free
-          - gstreamer1-plugins-bad-freeworld
-          - gstreamer1-plugins-good
-          - gstreamer1-plugins-base
-        state: present
-      when: ansible_os_family == 'RedHat'
-
-    # === Cleanup (Debian/Ubuntu) ===
-    - name: Autoremove and autoclean (Debian family)
+    # === Multimedia Codecs ===
+    - name: Install multimedia codecs on Debian-based systems
       ansible.builtin.apt:
-        autoremove: yes
-        autoclean: yes
+        name: "{{ multimedia_packages_debian }}"
+        state: present
       when: ansible_os_family == 'Debian'
 
-    # === Finalize ===
-    - name: Flush all pending handlers
-      meta: flush_handlers
-
-    - name: Reboot system if required
-      ansible.builtin.reboot:
-        msg: "Reboot initiated by Ansible after system configuration"
-        connect_timeout: 5
-        reboot_timeout: 600
-        post_reboot_delay: 30
-      when: reboot_required | default(false)
-
-  handlers:
-    - name: mark reboot required
-      ansible.builtin.set_fact:
-        reboot_required: true
-
-    - name: restart journald
-      ansible.builtin.systemd:
-        name: systemd-journald
-        state: restarted
+    - name: Install multimedia codecs on RedHat-based systems
+      ansible.builtin.dnf:
+        name: "{{ multimedia_packages_redhat }}"
+        state: present
+      when: ansible_os_family == 'RedHat'
