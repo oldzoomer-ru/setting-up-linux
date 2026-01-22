@@ -1,5 +1,5 @@
 ---
-- name: Install CUDA Toolkit (Ubuntu/Debian)
+- name: Install CUDA Toolkit and NVIDIA driver
   hosts: all
   become: true
   vars:
@@ -14,8 +14,7 @@
   tasks:
     - name: Fail on unsupported OS
       assert:
-        that:
-          - os_id in ['ubuntu', 'debian']
+        that: os_id in ['ubuntu', 'debian']
         fail_msg: "Only Ubuntu and Debian are supported"
 
     - name: Install prerequisites
@@ -23,10 +22,11 @@
         name:
           - wget
           - ca-certificates
+          - gnupg
         state: present
         update_cache: true
 
-    - name: Download cuda-keyring to /tmp
+    - name: Download cuda-keyring
       get_url:
         url: "{{ cuda_keyring_url }}"
         dest: /tmp/cuda-keyring.deb
@@ -43,7 +43,17 @@
         state: present
         update_cache: true
 
-    - name: Set global environment in /etc/environment
+    - name: Enable NVIDIA power management services
+      systemd:
+        name: "{{ item }}"
+        enabled: true
+        daemon_reload: true
+      loop:
+        - nvidia-suspend
+        - nvidia-hibernate
+        - nvidia-resume
+
+    - name: Set global environment for CUDA
       lineinfile:
         path: /etc/environment
         line: "{{ item }}"
