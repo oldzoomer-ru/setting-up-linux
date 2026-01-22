@@ -1,0 +1,53 @@
+---
+- name: Install CUDA Toolkit (Ubuntu/Debian)
+  hosts: all
+  become: true
+  vars:
+    os_id: "{{ ansible_distribution | lower }}"
+    os_major: "{{ ansible_distribution_version.split('.')[0] }}"
+    os_repo_suffix: >-
+      {{
+        (os_id + (ansible_distribution_version.replace('.', '') if os_id == 'ubuntu' else os_major))
+      }}
+    cuda_keyring_url: "https://developer.download.nvidia.com/compute/cuda/repos/{{ os_repo_suffix }}/x86_64/cuda-keyring_1.1-1_all.deb"
+
+  tasks:
+    - name: Fail on unsupported OS
+      assert:
+        that:
+          - os_id in ['ubuntu', 'debian']
+        fail_msg: "Only Ubuntu and Debian are supported"
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - wget
+          - ca-certificates
+        state: present
+        update_cache: true
+
+    - name: Download cuda-keyring to /tmp
+      get_url:
+        url: "{{ cuda_keyring_url }}"
+        dest: /tmp/cuda-keyring.deb
+        mode: '0644'
+
+    - name: Install cuda-keyring
+      apt:
+        deb: /tmp/cuda-keyring.deb
+        state: present
+
+    - name: Install CUDA meta-package
+      apt:
+        name: cuda
+        state: present
+        update_cache: true
+
+    - name: Set global environment in /etc/environment
+      lineinfile:
+        path: /etc/environment
+        line: "{{ item }}"
+        create: false
+      loop:
+        - 'PATH="/usr/local/cuda/bin:$PATH"'
+        - 'LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"'
