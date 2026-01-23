@@ -5,17 +5,42 @@
   vars:
     os_id: "{{ ansible_distribution | lower }}"
     os_major: "{{ ansible_distribution_version.split('.')[0] }}"
-    os_repo_suffix: >-
+
+    # Маппинг мажорной версии Mint → Ubuntu numeric ID
+    mint_to_ubuntu:
+      '20': '2004'
+      '21': '2204'
+      '22': '2404'
+
+    # Определяем целевую ОС
+    target_os: >-
       {{
-        (os_id + (ansible_distribution_version.replace('.', '') if os_id == 'ubuntu' else os_major))
+        'ubuntu' if os_id in ['linux mint', 'ubuntu']
+        else ('debian' if os_id == 'debian' else '')
       }}
+
+    # Определяем numeric release (2004, 2204, 2404, 12 и т.д.)
+    target_release_numeric: >-
+      {{
+        mint_to_ubuntu[os_major]
+        if os_id == 'linux mint'
+        else (
+          (ansible_distribution_version.split('.')[0] + ansible_distribution_version.split('.')[1])
+          if os_id == 'ubuntu'
+          else ansible_distribution_major_version
+        )
+      }}
+
+    os_repo_suffix: "{{ target_os }}{{ target_release_numeric }}"
     cuda_keyring_url: "https://developer.download.nvidia.com/compute/cuda/repos/{{ os_repo_suffix }}/x86_64/cuda-keyring_1.1-1_all.deb"
 
   tasks:
     - name: Fail on unsupported OS
       assert:
-        that: os_id in ['ubuntu', 'debian']
-        fail_msg: "Only Ubuntu and Debian are supported"
+        that:
+          - target_os in ['ubuntu', 'debian']
+          - target_release_numeric | length > 0
+        fail_msg: "Only Ubuntu, Debian, and Linux Mint (based on supported Ubuntu) are supported"
 
     - name: Install prerequisites
       apt:
@@ -43,7 +68,7 @@
         state: present
         update_cache: true
 
-    - name: Enable NVIDIA power management services
+    - name: Enable NVIDIA power management services (if available)
       systemd:
         name: "{{ item }}"
         enabled: true
@@ -52,12 +77,14 @@
         - nvidia-suspend
         - nvidia-hibernate
         - nvidia-resume
+      ignore_errors: true
 
     - name: Set global environment for CUDA
       lineinfile:
-        path: /etc/environment
+        path: /etc/environment.d/cuda.sh
         line: "{{ item }}"
-        create: false
+        create: true
+        state: present
       loop:
         - 'PATH="/usr/local/cuda/bin:$PATH"'
         - 'LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"'
