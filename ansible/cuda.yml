@@ -81,7 +81,7 @@
 
     - name: Set global environment for CUDA
       lineinfile:
-        path: /etc/environment.d/cuda.sh
+        path: /etc/profile.d/cuda.sh
         line: "{{ item }}"
         create: true
         state: present
