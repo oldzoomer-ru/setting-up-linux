@@ -80,7 +80,7 @@
     # === Microsoft Core Fonts ===
     - name: Accept MS fonts EULA on Debian-based systems
       ansible.builtin.debconf:
-        name: "{{ 'msttcorefonts' if ansible_distribution == 'Ubuntu' else 'ttf-mscorefonts-installer' }}"
+        name: ttf-mscorefonts-installer
         question: msttcorefonts/accepted-mscorefonts-eula
         value: "true"
         vtype: select
@@ -91,7 +91,7 @@
       block:
         - name: Install via APT (Debian/Ubuntu)
           ansible.builtin.apt:
-            name: "{{ 'ubuntu-restricted-extras' if ansible_distribution == 'Ubuntu' else 'ttf-mscorefonts-installer' }}"
+            name: ttf-mscorefonts-installer
             state: present
             update_cache: yes
           when: ansible_os_family == 'Debian'
