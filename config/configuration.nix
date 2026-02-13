@@ -7,27 +7,14 @@
   system.copySystemConfiguration = true;
   system.stateVersion = "24.11";
 
-  # --- Загрузчик: UKI + systemd-boot (efistub через UKI)
+  # --- Загрузчик: systemd-boot
   boot.loader = {
     systemd-boot.enable = true;
     efi.canTouchEfiVariables = true;
     efi.efiSysMountPoint = "/boot";
     timeout = 2;
   };
-
-  # Включаем Unified Kernel Images (UKI)
   boot.kernelPackages = pkgs.linuxPackages_latest;
-  boot.kernel.prepareUnifiedKernelImage = true;
-  boot.kernel.unifiedKernelImage = {
-    enable = true;
-    bundles = [{
-      name = "nixos";
-      kernel = config.boot.kernelPackages.kernel;
-      initrd = config.boot.initrd;
-      cmdline = config.boot.kernelParams;
-      osRelease = config.system.nixos.release;
-    }];
-  };
 
   # --- Параметры ядра
   boot.kernelParams = [
@@ -64,9 +51,6 @@
   # Отключаем встроенный nftables-файрволл
   networking.firewall.enable = false;
 
-  # Включаем firewalld
-  services.firewalld.enable = true;
-
   # --- Системные сервисы
   services.fstrim.enable = true;
 
@@ -77,11 +61,6 @@
     options = "--delete-older-than 14d";
   };
   nix.settings.auto-optimise-store = true;
-
-  # --- Управление памятью
-  services.earlyoom.enable = true;
-  services.earlyoom.memoryThreshold = 10;
-  services.earlyoom.swapThreshold = 10;
 
   # --- X11 / GNOME
   services.xserver = {
@@ -100,7 +79,7 @@
     alsa.enable = true;
     pulse.enable = true;
     # Bluetooth A2DP/HFP
-    media-session.enable = true;
+    wireplumber.enable = true;
   };
 
   # --- Bluetooth
@@ -110,42 +89,36 @@
   services.flatpak.enable = true;
   services.printing.enable = true;
 
-  # --- Docker
-  virtualisation.docker.enable = true;
-
   # --- Локаль и часы
   time.timeZone = "Europe/Moscow";
-  i18n.defaultLocale = "en_US.UTF-8";
+  i18n.defaultLocale = "ru_RU.UTF-8";
 
   # --- Пользователь
   users.users.oldzoomer = {
     isNormalUser = true;
-    description = "Egor Gavrilov";
-    extraGroups = [ "wheel" "networkmanager" "docker" "audio" "video" ];
+    description = "Егор Гаврилов";
+    extraGroups = [ "wheel" "networkmanager" "audio" "video" ];
   };
 
   # --- Переменные окружения
   environment.variables = {
     EDITOR = "nano";
     VISUAL = "nano";
-    XDG_CURRENT_DESKTOP = "GNOME";
   };
 
   # --- Пакеты
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    wget htop tree efibootmgr git gnupg curl file docker-compose
+    tree efibootmgr curl
   ];
 
   # --- Исключение GNOME-приложений
   environment.gnome.excludePackages = with pkgs; [
-    gnome-maps gnome-contacts geary gnome-calendar
-    gnome-characters gnome-connections gnome-tour epiphany
-    simple-scan gnome-music snapshot file-roller gnome-font-viewer
+    gnome-maps gnome-connections gnome-tour
+    epiphany simple-scan file-roller
   ];
 
   # --- GNOME-интеграция
   services.gnome.gnome-browser-connector.enable = true;
-  programs.dconf.enable = true;
 }
