@@ -64,9 +64,6 @@
   # Отключаем встроенный nftables-файрволл
   networking.firewall.enable = false;
 
-  # Включаем firewalld
-  services.firewalld.enable = true;
-
   # --- Системные сервисы
   services.fstrim.enable = true;
 
@@ -128,7 +125,6 @@
   environment.variables = {
     EDITOR = "nano";
     VISUAL = "nano";
-    XDG_CURRENT_DESKTOP = "GNOME";
   };
 
   # --- Пакеты
@@ -140,12 +136,10 @@
 
   # --- Исключение GNOME-приложений
   environment.gnome.excludePackages = with pkgs; [
-    gnome-maps gnome-contacts geary gnome-calendar
-    gnome-characters gnome-connections gnome-tour epiphany
-    simple-scan gnome-music snapshot file-roller gnome-font-viewer
+    gnome-maps gnome-connections gnome-tour
+    epiphany simple-scan file-roller
   ];
 
   # --- GNOME-интеграция
   services.gnome.gnome-browser-connector.enable = true;
-  programs.dconf.enable = true;
 }
