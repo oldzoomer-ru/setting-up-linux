@@ -14,7 +14,7 @@
     efi.efiSysMountPoint = "/boot";
     timeout = 2;
   };
-  boot.kernelPackages = pkgs.linuxPackages_latest;
+  boot.kernelPackages = pkgs.linuxPackages;
 
   # --- Параметры ядра
   boot.kernelParams = [
@@ -63,15 +63,41 @@
   nix.settings.auto-optimise-store = true;
 
   # --- X11 / GNOME
+  hardware.graphics.enable = true;
+
   services.xserver = {
     enable = true;
-    displayManager.gdm.enable = true;
-    desktopManager.gnome.enable = true;
+    videoDrivers = ["nvidia"];
     xkb = {
       layout = "us,ru";
       options = "grp:caps_toggle";
     };
   };
+
+  services.displayManager.gdm.enable = true;
+  services.desktopManager.gnome.enable = true;
+
+  hardware.nvidia = {
+    modesetting.enable = true;
+    powerManagement.enable = true;
+    powerManagement.finegrained = true;
+
+    prime = {
+      offload = {
+        enable = true;
+        enableOffloadCmd = true;
+      };
+
+      nvidiaBusId = "PCI:1:0:0";
+      amdgpuBusId = "PCI:101:0:0"; # 65 в hex (lspci) = 101 в dec (Xorg)
+    };
+
+    open = true;
+    nvidiaSettings = true;
+    package = config.boot.kernelPackages.nvidiaPackages.stable;
+  };
+
+  services.switcherooControl.enable = true;
 
   # --- Pipewire
   services.pipewire = {
@@ -89,6 +115,15 @@
   services.flatpak.enable = true;
   services.printing.enable = true;
 
+  virtualisation.podman = {
+    enable = true;
+    dockerCompat = true;
+  };
+
+  virtualisation.libvirtd.enable = true;
+  programs.virt-manager.enable = true;
+  virtualisation.libvirtd.qemu.swtpm.enable = true;
+
   # --- Локаль и часы
   time.timeZone = "Europe/Moscow";
   i18n.defaultLocale = "ru_RU.UTF-8";
@@ -97,7 +132,7 @@
   users.users.oldzoomer = {
     isNormalUser = true;
     description = "Егор Гаврилов";
-    extraGroups = [ "wheel" "networkmanager" "audio" "video" ];
+    extraGroups = [ "wheel" "networkmanager" "audio" "video" "libvirtd" ];
   };
 
   # --- Переменные окружения
@@ -110,7 +145,8 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    tree efibootmgr curl
+    tree efibootmgr curl pciutils git
+    distrobox dnsmasq bridge-utils
   ];
 
   # --- Исключение GNOME-приложений
