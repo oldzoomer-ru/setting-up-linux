@@ -58,5 +58,4 @@
       systemd:
         name: keyd
         state: restarted
-        enabled: false
       ignore_errors: true
