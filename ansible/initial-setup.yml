@@ -7,20 +7,8 @@
       Debian: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
       RedHat: "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
 
-    rpmfusion_free_url: >-
-      {{
-        'https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
-        if ansible_distribution == 'Fedora'
-        else 'https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
-      }}
-    rpmfusion_nonfree_url: >-
-      {{
-        'https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
-        if ansible_distribution == 'Fedora'
-        else 'https://mirrors.rpmfusion.org/nonfree/el/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
-      }}
-
-    epel_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
+    rpmfusion_free_url: 'https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
+    rpmfusion_nonfree_url: 'https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
 
     multimedia_packages_debian:
       - ffmpeg
@@ -70,12 +58,12 @@
             deb: "/tmp/google-chrome-stable.deb"
           when: ansible_os_family == 'Debian'
 
-        - name: Install Chrome on RedHat-based systems
+        - name: Install Chrome on Fedora
           ansible.builtin.dnf:
             name: "/tmp/google-chrome-stable.rpm"
             disable_gpg_check: true
             state: present
-          when: ansible_distribution == "Fedora"
+          when: ansible_distribution == 'Fedora'
 
     # === Microsoft Core Fonts ===
     - name: Accept MS fonts EULA on Debian-based systems
@@ -96,17 +84,10 @@
             update_cache: yes
           when: ansible_os_family == 'Debian'
 
-    # === Extra Repositories for RedHat family ===
-    - name: Configure additional repositories (RHEL/Fedora)
-      when: ansible_os_family == 'RedHat'
+    # === Extra repositories for Fedora ===
+    - name: Configure additional repositories (Fedora)
+      when: ansible_distribution == 'Fedora'
       block:
-        - name: Install EPEL (RHEL/CentOS only)
-          ansible.builtin.dnf:
-            name: "{{ epel_url }}"
-            state: present
-            disable_gpg_check: yes
-          when: ansible_distribution != 'Fedora'
-
         - name: Install RPM Fusion Free repository
           ansible.builtin.dnf:
             name: "{{ rpmfusion_free_url }}"
@@ -130,9 +111,9 @@
         state: present
       when: ansible_os_family == 'Debian'
 
-    - name: Install multimedia codecs on RedHat-based systems
+    - name: Install multimedia codecs on Fedora
       ansible.builtin.dnf:
         name: "{{ multimedia_packages_redhat }}"
         state: present
         allowerasing: true
-      when: ansible_os_family == 'RedHat'
+      when: ansible_distribution == 'Fedora'
