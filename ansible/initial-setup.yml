@@ -21,7 +21,6 @@
       }}
 
     epel_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
-    mscorefonts_url: "https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm"
 
     multimedia_packages_debian:
       - ffmpeg
@@ -74,8 +73,9 @@
         - name: Install Chrome on RedHat-based systems
           ansible.builtin.dnf:
             name: "/tmp/google-chrome-stable.rpm"
+            disable_gpg_check: true
             state: present
-          when: ansible_os_family == 'RedHat'
+          when: ansible_distribution == "Fedora"
 
     # === Microsoft Core Fonts ===
     - name: Accept MS fonts EULA on Debian-based systems
@@ -95,19 +95,6 @@
             state: present
             update_cache: yes
           when: ansible_os_family == 'Debian'
-
-        - name: Install via DNF (RHEL/Fedora)
-          when: ansible_os_family == 'RedHat'
-          block:
-            - name: Download msttcore-fonts RPM
-              ansible.builtin.get_url:
-                url: "{{ mscorefonts_url }}"
-                dest: /tmp/msttcore-fonts-installer.rpm
-                mode: '0644'
-            - name: Install msttcore-fonts RPM
-              ansible.builtin.dnf:
-                name: /tmp/msttcore-fonts-installer.rpm
-                state: present
 
     # === Extra Repositories for RedHat family ===
     - name: Configure additional repositories (RHEL/Fedora)
@@ -147,4 +134,5 @@
       ansible.builtin.dnf:
         name: "{{ multimedia_packages_redhat }}"
         state: present
+        allowerasing: true
       when: ansible_os_family == 'RedHat'

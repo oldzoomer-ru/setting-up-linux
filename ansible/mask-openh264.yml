@@ -5,13 +5,10 @@
   vars:
     openh264_flatpak_id: org.freedesktop.Platform.openh264
   tasks:
-    - name: Disable OpenH264 repository (RPM-based systems)
-      ansible.builtin.yum_repository:
-        name: cisco-openh264
-        enabled: false
-      when:
-        - ansible_os_family == "RedHat"
-        - ansible_distribution not in ["Amazon"]
+    - name: Disable OpenH264 via dnf config-manager
+      ansible.builtin.command: dnf config-manager setopt fedora-cisco-openh264.enabled=0
+      when: ansible_distribution == "Fedora"
+      changed_when: false
 
     - name: Check if Flatpak is installed
       ansible.builtin.package_facts:
