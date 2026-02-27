@@ -15,15 +15,6 @@
     timeout = 5;
   };
 
-  # --- Настройки dirty_* для корректного отображения прогресса записи на флешки/NVMe
-  # Используем ratio вместо bytes — безопаснее и адаптивнее к объёму RAM
-  boot.kernel.sysctl = {
-    "vm.dirty_background_ratio" = 5;
-    "vm.dirty_ratio" = 10;
-    "vm.dirty_expire_centisecs" = 1000;
-    "vm.dirty_writeback_centisecs" = 500;
-  };
-
   boot.supportedFilesystems = [ "ntfs" ];
   boot.consoleLogLevel = 0;
   boot.initrd.verbose = false;
@@ -88,6 +79,30 @@
   };
 
   services.switcherooControl.enable = true;
+
+  # Настройка hwdb (udev)
+  services.udev.extraHwdb = ''
+    evdev:input:b0003v0414p8104e0111*
+     KEYBOARD_KEY_7006f=fn
+     KEYBOARD_KEY_70067=sysrq
+  '';
+
+  # Настройка keyd
+  services.keyd = {
+    enable = true;
+    keyboards = {
+      default = {
+        ids = [ "*" ];
+        settings = {
+          main = {
+            # Синтаксис keyd: f23+leftshift+leftmeta = insert
+            "f23+leftshift+leftmeta" = "insert";
+            "s+leftshift+leftmeta" = "print";
+          };
+        };
+      };
+    };
+  };
 
   # --- Pipewire
   services.pipewire = {
