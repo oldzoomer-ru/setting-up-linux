@@ -1,2 +1,0 @@
---payload=http_req --lua-desync=http_methodeol
---payload=tls_client_hello --lua-desync=fake:blob=fake_default_tls:tcp_seq=1000000:repeats=1

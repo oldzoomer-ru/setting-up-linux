@@ -1,119 +1,202 @@
 ---
-- name: Universal System Configuration Playbook
+- name: Universal Linux configuration for GNOME-based distros
   hosts: all
-  become: yes
+  become: true
   vars:
-    chrome_url:
-      Debian: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
-      RedHat: "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
-
-    rpmfusion_free_url: 'https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
-    rpmfusion_nonfree_url: 'https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
-
-    multimedia_packages_debian:
-      - ffmpeg
-      - gstreamer1.0-plugins-base
-      - gstreamer1.0-plugins-good
-      - gstreamer1.0-plugins-bad
-      - gstreamer1.0-plugins-ugly
-      - gstreamer1.0-libav
-      - libavcodec-extra
-
-    multimedia_packages_redhat:
-      - ffmpeg
-      - gstreamer1-plugins-ugly
-      - gstreamer1-plugins-bad-free
-      - gstreamer1-plugins-bad-freeworld
-      - gstreamer1-plugins-good
-      - gstreamer1-plugins-base
-
+    # === Repos & Packages ===
+    flathub_url: https://dl.flathub.org/repo/flathub.flatpakrepo
+    chrome_deb_url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    chrome_rpm_url: https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+    # === OpenH264 ===
+    openh264_flatpak_id: org.freedesktop.Platform.openh264
   tasks:
-    # === Flatpak ===
-    - name: Install Flatpak and add Flathub
-      when: ansible_os_family in ['Debian', 'RedHat']
+    - name: Install base packages (Debian)
+      ansible.builtin.apt:
+        name:
+          - flatpak
+          - gnome-software-plugin-flatpak
+          - wget
+          - curl
+          - git
+          - tree
+          - build-essential
+          - timeshift
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+    - name: Install base packages (RedHat)
+      ansible.builtin.dnf:
+        name:
+          - flatpak
+          - wget
+          - curl
+          - git
+          - tree
+          - timeshift
+        state: present
+      when: ansible_os_family == "RedHat"
+    - name: Install RPM Fusion repositories (Fedora)
+      ansible.builtin.dnf:
+        name:
+          - https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm
+          - https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm
+        state: present
+        disable_gpg_check: true
+      when: ansible_distribution == "Fedora"
+    - name: Refresh DNF cache (RedHat/Fedora)
+      ansible.builtin.command: dnf makecache
+      changed_when: false
+      when: ansible_os_family == "RedHat"
+    - name: Disable OpenH264 repo via dnf (Fedora)
+      community.general.ini_file:
+        path: /etc/yum.repos.d/fedora-cisco-openh264.repo
+        section: fedora-cisco-openh264
+        option: enabled
+        value: "0"
+        no_extra_spaces: true
+        mode: "0644"
+      when: ansible_distribution == "Fedora"
+    - name: Check if Flatpak is installed
+      ansible.builtin.package_facts:
+        manager: auto
+      changed_when: false
+    - name: Check current OpenH264 mask status (Flatpak)
+      ansible.builtin.command: flatpak info --show-ref {{ openh264_flatpak_id }} --system
+      register: openh264_info
+      changed_when: false
+      failed_when: false
+      when:
+        - "'flatpak' in ansible_facts.packages"
+        - ansible_virtualization_type != "docker"
+    - name: Mask OpenH264 in Flatpak (system-wide)
+      ansible.builtin.command: flatpak mask {{ openh264_flatpak_id }} --system
+      environment:
+        LANG: C.UTF-8
+      register: flatpak_mask_result
+      changed_when: "'is already masked' not in flatpak_mask_result.stderr"
+      failed_when: flatpak_mask_result.rc != 0 and 'is already masked' not in flatpak_mask_result.stderr
+      when:
+        - ansible_virtualization_type != "docker"
+    - name: Create dconf local database directory
+      ansible.builtin.file:
+        path: /etc/dconf/db/local.d
+        state: directory
+        mode: "0755"
+    - name: Configure GNOME system-wide settings via dconf keyfile
+      ansible.builtin.copy:
+        dest: /etc/dconf/db/local.d/01-gnome-system.conf
+        content: |
+          [org/gnome/desktop/session]
+          idle-delay=uint32 720
+          [org/gnome/settings-daemon/plugins/power]
+          sleep-inactive-ac-timeout=uint32 900
+          sleep-inactive-ac-type='nothing'
+          sleep-inactive-battery-timeout=uint32 900
+          sleep-inactive-battery-type='suspend'
+          power-button-action='interactive'
+          [org/gnome/desktop/interface]
+          show-battery-percentage=true
+          color-scheme='prefer-dark'
+          [org/gnome/settings-daemon/plugins/color]
+          night-light-enabled=true
+          night-light-schedule-automatic=true
+          [org/gnome/desktop/privacy]
+          remember-recent-files=false
+          [org/gnome/TextEditor]
+          spellcheck=false
+          indent-style='space'
+          tab-width=uint32 4
+          show-line-numbers=true
+          highlight-current-line=true
+          restore-session=false
+          [org/gnome/calculator]
+          refresh-interval=86400
+          [org/gnome/system/location]
+          enabled=true
+          [org/gnome/shell/weather]
+          automatic-location=true
+        mode: "0644"
+        backup: true
+    - name: Add Flathub remote with verified subset (system-wide)
+      ansible.builtin.command: >
+        flatpak remote-add --if-not-exists --system --subset=verified flathub {{ flathub_url }}
+      register: flathub_add_result
+      changed_when: "'Already added' not in flathub_add_result.stdout"
+      failed_when: flathub_add_result.rc != 0 and 'Already added' not in flathub_add_result.stderr
+    - name: Install Google Chrome (Debian)
+      when: ansible_os_family == "Debian"
       block:
-        - name: Install flatpak package
-          package:
-            name: flatpak
+        - name: Download Chrome .deb package
+          ansible.builtin.get_url:
+            url: "{{ chrome_deb_url }}"
+            dest: /tmp/google-chrome-stable_current_amd64.deb
+            mode: "0644"
+        - name: Install Chrome .deb package
+          ansible.builtin.apt:
+            deb: /tmp/google-chrome-stable_current_amd64.deb
             state: present
-
-        - name: Add Flathub remote
-          community.general.flatpak_remote:
-            name: flathub
-            flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
-            state: present
-
-    # === Google Chrome ===
-    - name: Install Google Chrome
-      when: ansible_os_family in ['Debian', 'RedHat']
+    - name: Install Google Chrome (RedHat)
+      when: ansible_os_family == "RedHat"
       block:
-        - name: Download Chrome package
-          get_url:
-            url: "{{ chrome_url[ansible_os_family] }}"
-            dest: "/tmp/google-chrome-stable.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
-            mode: '0644'
-
-        - name: Install Chrome on Debian-based systems
-          apt:
-            deb: "/tmp/google-chrome-stable.deb"
-          when: ansible_os_family == 'Debian'
-
-        - name: Install Chrome on Fedora
-          dnf:
-            name: "/tmp/google-chrome-stable.rpm"
-            disable_gpg_check: yes
+        - name: Download Chrome .rpm package
+          ansible.builtin.get_url:
+            url: "{{ chrome_rpm_url }}"
+            dest: /tmp/google-chrome-stable_current_x86_64.rpm
+            mode: "0644"
+        - name: Install Chrome .rpm package
+          ansible.builtin.dnf:
+            name: /tmp/google-chrome-stable_current_x86_64.rpm
             state: present
-          when: ansible_distribution == 'Fedora'
-
-    # === Microsoft Core Fonts ===
-    - name: Accept MS fonts EULA on Debian-based systems
-      debconf:
-        name: ttf-mscorefonts-installer
-        question: msttcorefonts/accepted-mscorefonts-eula
-        value: "true"
-        vtype: select
-      when: ansible_os_family == 'Debian'
-
-    - name: Install Microsoft Core Fonts
-      when: ansible_os_family in ['Debian', 'RedHat']
+            disable_gpg_check: true
+    - name: Install Microsoft Core Fonts (Debian)
+      when: ansible_os_family == "Debian"
       block:
-        - name: Install via APT (Debian/Ubuntu)
-          apt:
+        - name: Pre-seed ttf-mscorefonts-installer EULA acceptance
+          ansible.builtin.debconf:
+            name: ttf-mscorefonts-installer
+            question: msttcorefonts/accepted-mscorefonts-eula
+            value: "true"
+            vtype: boolean
+        - name: Install ttf-mscorefonts-installer package
+          ansible.builtin.apt:
             name: ttf-mscorefonts-installer
             state: present
-            update_cache: yes
-          when: ansible_os_family == 'Debian'
-
-    # === Extra repositories for Fedora ===
-    - name: Configure additional repositories (Fedora)
-      when: ansible_distribution == 'Fedora'
-      block:
-        - name: Install RPM Fusion Free repository
-          dnf:
-            name: "{{ rpmfusion_free_url }}"
-            state: present
-            disable_gpg_check: yes
-
-        - name: Install RPM Fusion Non-Free repository
-          dnf:
-            name: "{{ rpmfusion_nonfree_url }}"
-            state: present
-            disable_gpg_check: yes
-
-        - name: Refresh DNF cache
-          dnf:
-            update_cache: yes
-
-    # === Multimedia Codecs ===
-    - name: Install multimedia codecs on Debian-based systems
-      apt:
-        name: "{{ multimedia_packages_debian }}"
+    - name: Install Microsoft Core Fonts (RedHat via RPM Fusion)
+      ansible.builtin.dnf:
+        name:
+          - lpf-mscore-fonts
+          - lpf-cleartype-fonts
         state: present
-      when: ansible_os_family == 'Debian'
-
-    - name: Install multimedia codecs on Fedora
-      dnf:
-        name: "{{ multimedia_packages_redhat }}"
+      when: ansible_os_family == "RedHat"
+    - name: Install multimedia codecs (Debian)
+      ansible.builtin.apt:
+        name:
+          - gstreamer1.0-plugins-base
+          - gstreamer1.0-plugins-good
+          - gstreamer1.0-plugins-bad
+          - gstreamer1.0-plugins-ugly
+          - gstreamer1.0-libav
+          - libavcodec-extra
         state: present
-        allowerasing: yes
-      when: ansible_distribution == 'Fedora'
+      when: ansible_os_family == "Debian"
+    - name: Install multimedia codecs (RedHat/Fedora via RPM Fusion)
+      when: ansible_os_family == "RedHat"
+      ansible.builtin.dnf:
+        name:
+          - gstreamer1-plugins-base
+          - gstreamer1-plugins-good
+          - gstreamer1-plugins-bad-free
+          - gstreamer1-plugins-ugly
+          - gstreamer1-libav
+        state: present
+    - name: Ensure dconf profile includes system-db:local
+      ansible.builtin.copy:
+        dest: /etc/dconf/profile/user
+        content: |
+          user-db:user
+          system-db:local
+        mode: "0644"
+        backup: true
+    - name: Trigger dconf update to apply system settings
+      ansible.builtin.command: dconf update
+      changed_when: false

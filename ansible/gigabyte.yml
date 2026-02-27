@@ -1,10 +1,10 @@
 ---
 - name: Deploy custom keyboard mappings (hwdb + keyd)
   hosts: all
-  become: yes
+  become: true
   tasks:
     - name: Deploy hwdb rule for Gigabyte keyboard
-      copy:
+      ansible.builtin.copy:
         content: |
           evdev:input:b0003v0414p8104e0111*
            KEYBOARD_KEY_7006f=fn
@@ -12,26 +12,22 @@
         dest: /etc/udev/hwdb.d/99-gigabyte.hwdb
         owner: root
         group: root
-        mode: '0644'
-
+        mode: "0644"
     - name: Update hwdb cache
-      command: systemd-hwdb update
+      ansible.builtin.command: systemd-hwdb update
       changed_when: false
-
     - name: Trigger udev reload
-      command: udevadm trigger
+      ansible.builtin.command: udevadm trigger
       changed_when: false
-
     - name: Ensure keyd config directory exists
-      file:
+      ansible.builtin.file:
         path: /etc/keyd
         state: directory
         owner: root
         group: root
-        mode: '0755'
-
+        mode: "0755"
     - name: Deploy keyd copilot.conf
-      copy:
+      ansible.builtin.copy:
         content: |
           [ids]
           *
@@ -40,10 +36,9 @@
         dest: /etc/keyd/copilot.conf
         owner: root
         group: root
-        mode: '0644'
-
+        mode: "0644"
     - name: Deploy keyd screenshot.conf
-      copy:
+      ansible.builtin.copy:
         content: |
           [ids]
           *
@@ -52,10 +47,9 @@
         dest: /etc/keyd/screenshot.conf
         owner: root
         group: root
-        mode: '0644'
-
+        mode: "0644"
     - name: Restart keyd if running
-      systemd:
+      ansible.builtin.systemd:
         name: keyd
         state: restarted
-      ignore_errors: yes
+      failed_when: false

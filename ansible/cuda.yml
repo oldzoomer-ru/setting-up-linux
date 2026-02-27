@@ -1,16 +1,16 @@
 ---
 - name: Install CUDA Toolkit and NVIDIA driver
   hosts: all
-  become: yes
+  become: true
   vars:
     os_id: "{{ ansible_distribution | lower }}"
     os_major: "{{ ansible_distribution_version.split('.')[0] }}"
 
     # Маппинг мажорной версии Mint → Ubuntu numeric ID
     mint_to_ubuntu:
-      '20': '2004'
-      '21': '2204'
-      '22': '2404'
+      "20": "2004"
+      "21": "2204"
+      "22": "2404"
 
     # Определяем целевую ОС
     target_os: >-
@@ -30,61 +30,48 @@
           else ansible_distribution_major_version
         )
       }}
-
     os_repo_suffix: "{{ target_os }}{{ target_release_numeric }}"
-    cuda_keyring_url: "https://developer.download.nvidia.com/compute/cuda/repos/{{ os_repo_suffix }}/x86_64/cuda-keyring_1.1-1_all.deb"
-
+    cuda_keyring_url: https://developer.download.nvidia.com/compute/cuda/repos/{{ os_repo_suffix }}/x86_64/cuda-keyring_1.1-1_all.deb
   tasks:
     - name: Fail on unsupported OS
-      assert:
+      ansible.builtin.assert:
         that:
           - target_os in ['ubuntu', 'debian']
           - target_release_numeric | length > 0
-        fail_msg: "Only Ubuntu, Debian, and Linux Mint (based on supported Ubuntu) are supported"
-
+        fail_msg: Only Ubuntu, Debian, and Linux Mint (based on supported Ubuntu) are supported
     - name: Install prerequisites
-      apt:
-        name:
-          - wget
-          - ca-certificates
-          - gnupg
+      ansible.builtin.apt:
+        name: [wget, ca-certificates, gnupg]
         state: present
-        update_cache: yes
-
+        update_cache: true
     - name: Download cuda-keyring
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ cuda_keyring_url }}"
         dest: /tmp/cuda-keyring.deb
-        mode: '0644'
-
+        mode: "0644"
     - name: Install cuda-keyring
-      apt:
+      ansible.builtin.apt:
         deb: /tmp/cuda-keyring.deb
         state: present
-
     - name: Install CUDA meta-package
-      apt:
+      ansible.builtin.apt:
         name: cuda
         state: present
-        update_cache: yes
-
+        update_cache: true
     - name: Enable NVIDIA power management services (if available)
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ item }}"
-        enabled: yes
-        daemon_reload: yes
-      loop:
-        - nvidia-suspend
-        - nvidia-hibernate
-        - nvidia-resume
-      ignore_errors: yes
-
+        enabled: true
+        daemon_reload: true
+      loop: [nvidia-suspend, nvidia-hibernate, nvidia-resume]
+      failed_when: false
     - name: Set global environment for CUDA
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/profile.d/cuda.sh
         line: "{{ item }}"
-        create: yes
+        mode: "0644"
+        create: true
         state: present
       loop:
-        - 'PATH="/usr/local/cuda/bin:$PATH"'
-        - 'LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"'
+        - PATH="/usr/local/cuda/bin:$PATH"
+        - LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
