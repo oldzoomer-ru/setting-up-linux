@@ -8,9 +8,9 @@
 
     # Маппинг мажорной версии Mint → Ubuntu numeric ID
     mint_to_ubuntu:
-      '20': '2004'
-      '21': '2204'
-      '22': '2404'
+      "20": "2004"
+      "21": "2204"
+      "22": "2404"
 
     # Определяем целевую ОС
     target_os: >-
@@ -55,7 +55,7 @@
       get_url:
         url: "{{ cuda_keyring_url }}"
         dest: /tmp/cuda-keyring.deb
-        mode: '0644'
+        mode: "0644"
 
     - name: Install cuda-keyring
       apt:

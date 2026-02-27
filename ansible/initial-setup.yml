@@ -7,8 +7,8 @@
       Debian: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
       RedHat: "https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm"
 
-    rpmfusion_free_url: 'https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-' + ansible_distribution_major_version + '.noarch.rpm'
-    rpmfusion_nonfree_url: 'https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-' + ansible_distribution_major_version + '.noarch.rpm'
+    rpmfusion_free_url: "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm"
+    rpmfusion_nonfree_url: "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm"
 
     multimedia_packages_debian:
       - ffmpeg
@@ -45,7 +45,7 @@
 
     # === Google Chrome ===
     - name: Install Google Chrome
-      when: ansible_os_family in ['Debian', 'RedHat']
+      when: ansible_os_family == 'Debian' or ansible_distribution == 'Fedora'
       block:
         - name: Download Chrome package
           get_url:

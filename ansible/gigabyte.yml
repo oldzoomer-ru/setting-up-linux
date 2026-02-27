@@ -12,7 +12,7 @@
         dest: /etc/udev/hwdb.d/99-gigabyte.hwdb
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Update hwdb cache
       command: systemd-hwdb update
@@ -28,7 +28,7 @@
         state: directory
         owner: root
         group: root
-        mode: '0755'
+        mode: "0755"
 
     - name: Deploy keyd copilot.conf
       copy:
@@ -40,7 +40,7 @@
         dest: /etc/keyd/copilot.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Deploy keyd screenshot.conf
       copy:
@@ -52,7 +52,7 @@
         dest: /etc/keyd/screenshot.conf
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Restart keyd if running
       systemd:

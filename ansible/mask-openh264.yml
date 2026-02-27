@@ -22,7 +22,7 @@
         LANG: C.UTF-8
       register: flatpak_mask_result
       changed_when: "'nothing to mask' not in flatpak_mask_result.stderr"
-      failed_when: flatpak_mask_result.rc not in [0, 1]  # rc=1 may mean already masked
+      failed_when: flatpak_mask_result.rc not in [0, 1] # rc=1 may mean already masked
       when:
         - "'flatpak' in ansible_facts.packages"
-        - ansible_virtualization_type != "docker"  # avoid in containers unless needed
+        - ansible_virtualization_type != "docker" # avoid in containers unless needed

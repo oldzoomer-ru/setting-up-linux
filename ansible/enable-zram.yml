@@ -4,12 +4,12 @@
   become: yes
   vars:
     zram_compression: zstd
-    zram_percentage: 100  # 100% of RAM
+    zram_percentage: 100 # 100% of RAM
 
   tasks:
     - name: Install required packages
       apt:
-        name: 
+        name:
           - zram-tools
         state: latest
         update_cache: yes
