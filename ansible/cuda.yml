@@ -1,7 +1,7 @@
 ---
 - name: Install CUDA Toolkit and NVIDIA driver
   hosts: all
-  become: true
+  become: yes
   vars:
     os_id: "{{ ansible_distribution | lower }}"
     os_major: "{{ ansible_distribution_version.split('.')[0] }}"
@@ -49,7 +49,7 @@
           - ca-certificates
           - gnupg
         state: present
-        update_cache: true
+        update_cache: yes
 
     - name: Download cuda-keyring
       get_url:
@@ -66,24 +66,24 @@
       apt:
         name: cuda
         state: present
-        update_cache: true
+        update_cache: yes
 
     - name: Enable NVIDIA power management services (if available)
       systemd:
         name: "{{ item }}"
-        enabled: true
-        daemon_reload: true
+        enabled: yes
+        daemon_reload: yes
       loop:
         - nvidia-suspend
         - nvidia-hibernate
         - nvidia-resume
-      ignore_errors: true
+      ignore_errors: yes
 
     - name: Set global environment for CUDA
       lineinfile:
         path: /etc/profile.d/cuda.sh
         line: "{{ item }}"
-        create: true
+        create: yes
         state: present
       loop:
         - 'PATH="/usr/local/cuda/bin:$PATH"'

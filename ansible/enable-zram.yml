@@ -1,7 +1,7 @@
 ---
 - name: Configure zRAM
   hosts: all
-  become: true
+  become: yes
   vars:
     zram_compression: zstd
     zram_percentage: 100  # 100% of RAM

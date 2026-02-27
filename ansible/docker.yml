@@ -5,11 +5,11 @@
 
   tasks:
     - name: Determine package manager (APT or DNF)
-      ansible.builtin.set_fact:
+      set_fact:
         pkg_manager: "{{ 'apt' if ansible_pkg_mgr == 'apt' else 'dnf' }}"
 
     - name: Install prerequisites (APT)
-      ansible.builtin.apt:
+      apt:
         name:
           - ca-certificates
           - curl
@@ -20,28 +20,28 @@
       when: pkg_manager == 'apt'
 
     - name: Install prerequisites (DNF)
-      ansible.builtin.dnf:
+      dnf:
         name:
           - dnf-plugins-core
         state: present
       when: pkg_manager == 'dnf'
 
     - name: Create keyring directory for Docker (APT)
-      ansible.builtin.file:
+      file:
         path: /etc/apt/keyrings
         state: directory
         mode: 0755
       when: pkg_manager == 'apt'
 
     - name: Add Docker GPG key (APT)
-      ansible.builtin.get_url:
+      get_url:
         url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
         dest: /etc/apt/keyrings/docker.asc
         mode: 0644
       when: pkg_manager == 'apt'
 
     - name: Add Docker repository (APT)
-      ansible.builtin.apt_repository:
+      apt_repository:
         repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
         state: present
         filename: docker
@@ -49,7 +49,7 @@
       when: pkg_manager == 'apt'
 
     - name: Add Docker repository (DNF)
-      ansible.builtin.yum_repository:
+      yum_repository:
         name: docker-ce
         description: "Docker CE Stable"
         baseurl: "https://download.docker.com/linux/{{ 'fedora' if ansible_distribution == 'Fedora' else 'rhel' }}/$releasever/$basearch/stable"
@@ -59,7 +59,7 @@
       when: pkg_manager == 'dnf'
 
     - name: Install Docker packages
-      ansible.builtin.package:
+      package:
         name:
           - docker-ce
           - docker-ce-cli
@@ -69,13 +69,13 @@
         state: present
 
     - name: Start and enable Docker service
-      ansible.builtin.systemd:
+      systemd:
         name: docker
         state: started
         enabled: yes
 
     - name: Add current user to docker group
-      ansible.builtin.user:
+      user:
         name: "{{ ansible_user | default(ansible_ssh_user) | default(ansible_user_id) }}"
         groups: docker
         append: yes
@@ -84,5 +84,5 @@
 
   handlers:
     - name: Notify about docker group changes
-      ansible.builtin.debug:
+      debug:
         msg: "User added to docker group. You need to logout and login again for changes to take effect."

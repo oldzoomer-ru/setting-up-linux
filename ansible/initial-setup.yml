@@ -33,7 +33,7 @@
       when: ansible_os_family in ['Debian', 'RedHat']
       block:
         - name: Install flatpak package
-          ansible.builtin.package:
+          package:
             name: flatpak
             state: present
 
@@ -48,26 +48,26 @@
       when: ansible_os_family in ['Debian', 'RedHat']
       block:
         - name: Download Chrome package
-          ansible.builtin.get_url:
+          get_url:
             url: "{{ chrome_url[ansible_os_family] }}"
             dest: "/tmp/google-chrome-stable.{{ 'deb' if ansible_os_family == 'Debian' else 'rpm' }}"
             mode: '0644'
 
         - name: Install Chrome on Debian-based systems
-          ansible.builtin.apt:
+          apt:
             deb: "/tmp/google-chrome-stable.deb"
           when: ansible_os_family == 'Debian'
 
         - name: Install Chrome on Fedora
-          ansible.builtin.dnf:
+          dnf:
             name: "/tmp/google-chrome-stable.rpm"
-            disable_gpg_check: true
+            disable_gpg_check: yes
             state: present
           when: ansible_distribution == 'Fedora'
 
     # === Microsoft Core Fonts ===
     - name: Accept MS fonts EULA on Debian-based systems
-      ansible.builtin.debconf:
+      debconf:
         name: ttf-mscorefonts-installer
         question: msttcorefonts/accepted-mscorefonts-eula
         value: "true"
@@ -78,7 +78,7 @@
       when: ansible_os_family in ['Debian', 'RedHat']
       block:
         - name: Install via APT (Debian/Ubuntu)
-          ansible.builtin.apt:
+          apt:
             name: ttf-mscorefonts-installer
             state: present
             update_cache: yes
@@ -89,31 +89,31 @@
       when: ansible_distribution == 'Fedora'
       block:
         - name: Install RPM Fusion Free repository
-          ansible.builtin.dnf:
+          dnf:
             name: "{{ rpmfusion_free_url }}"
             state: present
             disable_gpg_check: yes
 
         - name: Install RPM Fusion Non-Free repository
-          ansible.builtin.dnf:
+          dnf:
             name: "{{ rpmfusion_nonfree_url }}"
             state: present
             disable_gpg_check: yes
 
         - name: Refresh DNF cache
-          ansible.builtin.dnf:
+          dnf:
             update_cache: yes
 
     # === Multimedia Codecs ===
     - name: Install multimedia codecs on Debian-based systems
-      ansible.builtin.apt:
+      apt:
         name: "{{ multimedia_packages_debian }}"
         state: present
       when: ansible_os_family == 'Debian'
 
     - name: Install multimedia codecs on Fedora
-      ansible.builtin.dnf:
+      dnf:
         name: "{{ multimedia_packages_redhat }}"
         state: present
-        allowerasing: true
+        allowerasing: yes
       when: ansible_distribution == 'Fedora'
