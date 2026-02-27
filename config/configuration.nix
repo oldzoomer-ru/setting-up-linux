@@ -14,7 +14,6 @@
     efi.efiSysMountPoint = "/boot";
     timeout = 2;
   };
-  boot.kernelPackages = pkgs.linuxPackages;
 
   # --- Параметры ядра
   boot.kernelParams = [
@@ -87,9 +86,9 @@
         enable = true;
         enableOffloadCmd = true;
       };
-
       nvidiaBusId = "PCI:1:0:0";
-      amdgpuBusId = "PCI:101:0:0"; # 65 в hex (lspci) = 101 в dec (Xorg)
+      # 65 в hex (lspci) = 101 в dec (Xorg)
+      amdgpuBusId = "PCI:101:0:0";
     };
 
     open = true;
@@ -145,14 +144,12 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    tree efibootmgr curl pciutils git
-    distrobox dnsmasq bridge-utils
+    bridge-utils curl distrobox dnsmasq efibootmgr git pciutils tree
   ];
 
   # --- Исключение GNOME-приложений
   environment.gnome.excludePackages = with pkgs; [
-    gnome-maps gnome-connections gnome-tour
-    epiphany simple-scan file-roller
+    epiphany file-roller gnome-connections gnome-maps gnome-tour simple-scan
   ];
 
   # --- GNOME-интеграция
