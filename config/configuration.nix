@@ -12,17 +12,8 @@
     systemd-boot.enable = true;
     efi.canTouchEfiVariables = true;
     efi.efiSysMountPoint = "/boot";
-    timeout = 2;
+    timeout = 5;
   };
-
-  # --- Параметры ядра
-  boot.kernelParams = [
-    "quiet"
-    "loglevel=3"
-    "rd.systemd.show_status=false"
-    "rd.udev.log_level=3"
-    "udev.log_priority=3"
-  ];
 
   # --- Настройки dirty_* для корректного отображения прогресса записи на флешки/NVMe
   # Используем ratio вместо bytes — безопаснее и адаптивнее к объёму RAM
@@ -144,7 +135,7 @@
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
-    bridge-utils curl distrobox dnsmasq efibootmgr git pciutils tree
+    bridge-utils curl distrobox dnsmasq efibootmgr pciutils tree
   ];
 
   # --- Исключение GNOME-приложений
