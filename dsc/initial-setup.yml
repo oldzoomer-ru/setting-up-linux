@@ -1,0 +1,81 @@
+properties:
+  resources:
+
+    - resource: Microsoft.Windows.Developer/WindowsExplorer
+      directives:
+        description: Modify Windows Explorer settings
+        allowPrerelease: true
+      settings:
+        FileExtensions: Show
+        HiddenFiles: Show
+
+    - resource: Microsoft.Windows.Developer/ShowSecondsInClock
+      directives:
+        description: Show seconds in clock
+        allowPrerelease: true
+      settings:
+        Ensure: Present
+
+    - resource: Microsoft.Windows.Developer/EnableDarkMode
+      directives:
+        description: Disable dark mode
+        allowPrerelease: true
+      settings:
+        Ensure: Present
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: VS Code
+      settings:
+        id: Microsoft.VisualStudioCode
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: PowerShell Core
+      settings:
+        id: Microsoft.PowerShell
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Git
+      settings:
+        id: Git.Git
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Docker Desktop
+      settings:
+        id: Docker.DockerDesktop
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: LM Studio
+      settings:
+        id: ElementLabs.LMStudio
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Hasleo Backup Suite
+      settings:
+        id: Hasleo.BackupSuiteFree
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: Yandex Music
+      settings:
+        id: Yandex.Music
+        source: winget
+
+    - resource: Microsoft.WinGet.DSC/WinGetPackage
+      directives:
+        description: ONLYOFFICE
+      settings:
+        id: ONLYOFFICE.DesktopEditors
+        source: winget
+  configurationVersion: 0.2.0
