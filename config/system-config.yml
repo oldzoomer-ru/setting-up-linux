@@ -1,0 +1,50 @@
+# Created using winget configure export 1.28.220
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.3
+$schema: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/2023/08/config/document.json
+metadata:
+  winget:
+    processor:
+      identifier: "dscv3"
+resources:
+- name: Microsoft.WinGet/Package_yt31l6e5
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "Microsoft.PowerShell: \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430"
+  properties:
+    id: "Microsoft.PowerShell"
+    source: "winget"
+- name: winget_Hasleo.BackupSuiteFree
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C Hasleo.BackupSuiteFree"
+  properties:
+    id: "Hasleo.BackupSuiteFree"
+    source: "winget"
+- name: winget_ONLYOFFICE.DesktopEditors
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C ONLYOFFICE.DesktopEditors"
+  properties:
+    id: "ONLYOFFICE.DesktopEditors"
+    source: "winget"
+- name: winget_Yandex.Music
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C Yandex.Music"
+  properties:
+    id: "Yandex.Music"
+    source: "winget"
+- name: winget_WinMerge.WinMerge
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C WinMerge.WinMerge"
+  properties:
+    id: "WinMerge.WinMerge"
+    source: "winget"
+- name: winget_ElementLabs.LMStudio
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C ElementLabs.LMStudio"
+  properties:
+    id: "ElementLabs.LMStudio"
+    source: "winget"
