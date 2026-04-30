@@ -8,7 +8,7 @@
         content: |
           evdev:input:b0003v0414p8104e0111*
            KEYBOARD_KEY_7006f=fn
-           KEYBOARD_KEY_70067=sysrq
+           KEYBOARD_KEY_70067=www
         dest: /etc/udev/hwdb.d/99-gigabyte.hwdb
         owner: root
         group: root
@@ -26,25 +26,30 @@
         owner: root
         group: root
         mode: "0755"
-    - name: Deploy keyd copilot.conf
+    - name: Remove old keyd configs
+      ansible.builtin.file:
+        path: "/etc/keyd/{{ item }}"
+        state: absent
+      loop:
+        - copilot.conf
+        - screenshot.conf
+    - name: Deploy keyd unified config
       ansible.builtin.copy:
         content: |
           [ids]
           *
+
           [main]
-          f23+leftshift+leftmeta = insert
-        dest: /etc/keyd/copilot.conf
-        owner: root
-        group: root
-        mode: "0644"
-    - name: Deploy keyd screenshot.conf
-      ansible.builtin.copy:
-        content: |
-          [ids]
-          *
-          [main]
+          # Аккорд для Скриншота (на базе S, Shift, Meta)
           s+leftshift+leftmeta = print
-        dest: /etc/keyd/screenshot.conf
+
+          # Кнопка Copilot активирует слой для GoldED
+          f23+leftshift+leftmeta = layer(fido)
+
+          [fido]
+          i = insert
+          w = f2
+        dest: /etc/keyd/default.conf
         owner: root
         group: root
         mode: "0644"
