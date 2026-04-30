@@ -5,8 +5,6 @@
   vars:
     # === Repos & Packages ===
     flathub_url: https://dl.flathub.org/repo/flathub.flatpakrepo
-    chrome_deb_url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    chrome_rpm_url: https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
     # === OpenH264 ===
     openh264_flatpak_id: org.freedesktop.Platform.openh264
   tasks:
@@ -60,6 +58,12 @@
       ansible.builtin.package_facts:
         manager: auto
       changed_when: false
+    - name: Add Flathub remote with verified subset (system-wide)
+      ansible.builtin.command: >
+        flatpak remote-add --if-not-exists --system --subset=verified flathub {{ flathub_url }}
+      register: flathub_add_result
+      changed_when: "'Already added' not in flathub_add_result.stdout"
+      failed_when: flathub_add_result.rc != 0 and 'Already added' not in flathub_add_result.stderr
     - name: Check current OpenH264 mask status (Flatpak)
       ansible.builtin.command: flatpak info --show-ref {{ openh264_flatpak_id }} --system
       register: openh264_info
@@ -77,77 +81,6 @@
       failed_when: flatpak_mask_result.rc != 0 and 'is already masked' not in flatpak_mask_result.stderr
       when:
         - ansible_virtualization_type != "docker"
-    - name: Create dconf local database directory
-      ansible.builtin.file:
-        path: /etc/dconf/db/local.d
-        state: directory
-        mode: "0755"
-    - name: Configure GNOME system-wide settings via dconf keyfile
-      ansible.builtin.copy:
-        dest: /etc/dconf/db/local.d/01-gnome-system.conf
-        content: |
-          [org/gnome/desktop/session]
-          idle-delay=uint32 720
-          [org/gnome/settings-daemon/plugins/power]
-          sleep-inactive-ac-timeout=uint32 900
-          sleep-inactive-ac-type='nothing'
-          sleep-inactive-battery-timeout=uint32 900
-          sleep-inactive-battery-type='suspend'
-          power-button-action='interactive'
-          [org/gnome/desktop/interface]
-          show-battery-percentage=true
-          color-scheme='prefer-dark'
-          [org/gnome/settings-daemon/plugins/color]
-          night-light-enabled=true
-          night-light-schedule-automatic=true
-          [org/gnome/desktop/privacy]
-          remember-recent-files=false
-          [org/gnome/TextEditor]
-          spellcheck=false
-          indent-style='space'
-          tab-width=uint32 4
-          show-line-numbers=true
-          highlight-current-line=true
-          restore-session=false
-          [org/gnome/calculator]
-          refresh-interval=86400
-          [org/gnome/system/location]
-          enabled=true
-          [org/gnome/shell/weather]
-          automatic-location=true
-        mode: "0644"
-        backup: true
-    - name: Add Flathub remote with verified subset (system-wide)
-      ansible.builtin.command: >
-        flatpak remote-add --if-not-exists --system --subset=verified flathub {{ flathub_url }}
-      register: flathub_add_result
-      changed_when: "'Already added' not in flathub_add_result.stdout"
-      failed_when: flathub_add_result.rc != 0 and 'Already added' not in flathub_add_result.stderr
-    - name: Install Google Chrome (Debian)
-      when: ansible_os_family == "Debian"
-      block:
-        - name: Download Chrome .deb package
-          ansible.builtin.get_url:
-            url: "{{ chrome_deb_url }}"
-            dest: /tmp/google-chrome-stable_current_amd64.deb
-            mode: "0644"
-        - name: Install Chrome .deb package
-          ansible.builtin.apt:
-            deb: /tmp/google-chrome-stable_current_amd64.deb
-            state: present
-    - name: Install Google Chrome (RedHat)
-      when: ansible_os_family == "RedHat"
-      block:
-        - name: Download Chrome .rpm package
-          ansible.builtin.get_url:
-            url: "{{ chrome_rpm_url }}"
-            dest: /tmp/google-chrome-stable_current_x86_64.rpm
-            mode: "0644"
-        - name: Install Chrome .rpm package
-          ansible.builtin.dnf:
-            name: /tmp/google-chrome-stable_current_x86_64.rpm
-            state: present
-            disable_gpg_check: true
     - name: Install Microsoft Core Fonts (Debian)
       when: ansible_os_family == "Debian"
       block:
@@ -189,14 +122,3 @@
           - gstreamer1-plugins-ugly
           - gstreamer1-libav
         state: present
-    - name: Ensure dconf profile includes system-db:local
-      ansible.builtin.copy:
-        dest: /etc/dconf/profile/user
-        content: |
-          user-db:user
-          system-db:local
-        mode: "0644"
-        backup: true
-    - name: Trigger dconf update to apply system settings
-      ansible.builtin.command: dconf update
-      changed_when: false
