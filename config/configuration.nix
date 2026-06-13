@@ -15,16 +15,13 @@
     timeout = 5;
   };
 
-  boot.supportedFilesystems = [ "ntfs" ];
-  boot.consoleLogLevel = 0;
-  boot.initrd.verbose = false;
   boot.plymouth.enable = true;
   boot.tmp.useTmpfs = true;
 
   # --- ZRAM: 100% от RAM
   zramSwap.enable = true;
   zramSwap.memoryPercent = 100;
-  zramSwap.algorithm = "zstd";  # эффективнее, чем lzo/lz4 при большом объёме
+  zramSwap.algorithm = "zstd";
 
   networking.hostName = "oldzoomer-laptop";
   networking.networkmanager.enable = true;
@@ -138,6 +135,8 @@
     isNormalUser = true;
     description = "Егор Гаврилов";
     extraGroups = [ "wheel" "networkmanager" "audio" "video" "libvirtd" ];
+    subUidRanges = [{ startUid = 100000; count = 65536; }];
+    subGidRanges = [{ startUid = 100000; count = 65536; }];
   };
 
   # --- Переменные окружения
@@ -159,5 +158,9 @@
   ];
 
   # --- GNOME-интеграция
-  services.gnome.gnome-browser-connector.enable = true;
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gnome ];
+    config.common.default = [ "gnome" ];
+  };
 }
