@@ -19,6 +19,16 @@
     - name: Trigger udev reload
       ansible.builtin.command: udevadm trigger
       changed_when: false
+    - name: Install keyd (Debian)
+      ansible.builtin.apt:
+        name: keyd
+        state: present
+      when: ansible_os_family == "Debian"
+    - name: Install keyd (RedHat)
+      ansible.builtin.dnf:
+        name: keyd
+        state: present
+      when: ansible_os_family == "RedHat"
     - name: Ensure keyd config directory exists
       ansible.builtin.file:
         path: /etc/keyd
@@ -57,4 +67,5 @@
       ansible.builtin.systemd:
         name: keyd
         state: restarted
-      failed_when: false
+      register: keyd_restart
+      failed_when: keyd_restart is failed and 'Could not find the requested service' not in keyd_restart.msg

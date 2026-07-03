@@ -3,48 +3,11 @@
   hosts: all
   become: true
   vars:
-    # === Repos & Packages ===
-    flathub_url: https://dl.flathub.org/repo/flathub.flatpakrepo
-    # === OpenH264 ===
     openh264_flatpak_id: org.freedesktop.Platform.openh264
+    zram_swap_size: "{{ ansible_memtotal_mb }}M"
+
   tasks:
-    - name: Install base packages (Debian)
-      ansible.builtin.apt:
-        name:
-          - flatpak
-          - gnome-software-plugin-flatpak
-          - wget
-          - curl
-          - git
-          - tree
-          - build-essential
-          - timeshift
-        state: present
-        update_cache: true
-      when: ansible_os_family == "Debian"
-    - name: Install base packages (RedHat)
-      ansible.builtin.dnf:
-        name:
-          - flatpak
-          - wget
-          - curl
-          - git
-          - tree
-          - timeshift
-        state: present
-      when: ansible_os_family == "RedHat"
-    - name: Install RPM Fusion repositories (Fedora)
-      ansible.builtin.dnf:
-        name:
-          - https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_distribution_major_version }}.noarch.rpm
-          - https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_distribution_major_version }}.noarch.rpm
-        state: present
-        disable_gpg_check: true
-      when: ansible_distribution == "Fedora"
-    - name: Refresh DNF cache (RedHat/Fedora)
-      ansible.builtin.command: dnf makecache
-      changed_when: false
-      when: ansible_os_family == "RedHat"
+
     - name: Disable OpenH264 repo via dnf (Fedora)
       community.general.ini_file:
         path: /etc/yum.repos.d/fedora-cisco-openh264.repo
@@ -54,24 +17,48 @@
         no_extra_spaces: true
         mode: "0644"
       when: ansible_distribution == "Fedora"
-    - name: Check if Flatpak is installed
-      ansible.builtin.package_facts:
-        manager: auto
-      changed_when: false
-    - name: Add Flathub remote with verified subset (system-wide)
-      ansible.builtin.command: >
-        flatpak remote-add --if-not-exists --system --subset=verified flathub {{ flathub_url }}
-      register: flathub_add_result
-      changed_when: "'Already added' not in flathub_add_result.stdout"
-      failed_when: flathub_add_result.rc != 0 and 'Already added' not in flathub_add_result.stderr
-    - name: Check current OpenH264 mask status (Flatpak)
-      ansible.builtin.command: flatpak info --show-ref {{ openh264_flatpak_id }} --system
-      register: openh264_info
-      changed_when: false
-      failed_when: false
-      when:
-        - "'flatpak' in ansible_facts.packages"
-        - ansible_virtualization_type != "docker"
+
+    - name: Load zram configuration
+      ansible.builtin.include_role:
+        name: rcrawf.zram
+
+    - name: Load Flatpak configuration
+      ansible.builtin.include_role:
+        name: diademiemi.flatpak
+      vars:
+        flatpak_install_gnome: true
+
+    - name: Load RPM Fusion configuration (Only for RedHat/Fedora)
+      ansible.builtin.include_role:
+        name: egdoc.rpmfusion
+      vars:
+        rpmfusion_enable_nonfree_repo: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Install base packages (Debian)
+      ansible.builtin.apt:
+        name:
+          - wget
+          - curl
+          - git
+          - tree
+          - build-essential
+          - timeshift
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Install base packages (RedHat)
+      ansible.builtin.dnf:
+        name:
+          - wget
+          - curl
+          - git
+          - tree
+          - timeshift
+        state: present
+      when: ansible_os_family == "RedHat"
+
     - name: Mask OpenH264 in Flatpak (system-wide)
       ansible.builtin.command: flatpak mask {{ openh264_flatpak_id }} --system
       environment:
@@ -79,8 +66,7 @@
       register: flatpak_mask_result
       changed_when: "'is already masked' not in flatpak_mask_result.stderr"
       failed_when: flatpak_mask_result.rc != 0 and 'is already masked' not in flatpak_mask_result.stderr
-      when:
-        - ansible_virtualization_type != "docker"
+
     - name: Install Microsoft Core Fonts (Debian)
       when: ansible_os_family == "Debian"
       block:
@@ -94,6 +80,7 @@
           ansible.builtin.apt:
             name: ttf-mscorefonts-installer
             state: present
+
     - name: Install Microsoft Core Fonts (RedHat via RPM Fusion)
       ansible.builtin.dnf:
         name:
@@ -101,6 +88,7 @@
           - lpf-cleartype-fonts
         state: present
       when: ansible_os_family == "RedHat"
+
     - name: Install multimedia codecs (Debian)
       ansible.builtin.apt:
         name:
@@ -112,6 +100,7 @@
           - libavcodec-extra
         state: present
       when: ansible_os_family == "Debian"
+
     - name: Install multimedia codecs (RedHat/Fedora via RPM Fusion)
       when: ansible_os_family == "RedHat"
       ansible.builtin.dnf:
@@ -122,3 +111,21 @@
           - gstreamer1-plugins-ugly
           - gstreamer1-libav
         state: present
+
+    - name: Apply sysctl kernel parameters
+      ansible.posix.sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: true
+      loop:
+        - name: vm.swappiness
+          value: "10"
+        - name: vm.vfs_cache_pressure
+          value: "50"
+        - name: kernel.sysrq
+          value: "1"
+        - name: net.core.default_qdisc
+          value: fq
+        - name: net.ipv4.tcp_congestion_control
+          value: bbr

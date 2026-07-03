@@ -1,0 +1,108 @@
+# Winget DSCv3 — Desktop applications (equivalent to ansible/desktop-apps.yml)
+#
+# Installs creative, media, messaging, and office desktop applications via winget.
+# Run with: winget configure --file dsc\desktop-apps.dsc.winget --accept-configuration-agreements
+
+$schema: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/2023/08/config/document.json
+metadata:
+  winget:
+    processor:
+      identifier: dscv3
+
+resources:
+  # ── Video recording & streaming ─────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: OBSStudio
+    properties:
+      id: OBSProject.OBSStudio
+      source: winget
+      useLatest: true
+    metadata:
+      description: "OBS Studio — screen recording and streaming (was: com.obsproject.Studio flatpak)"
+
+  # ── Image editor ────────────────────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: GIMP
+    properties:
+      id: GIMP.GIMP
+      source: winget
+      useLatest: true
+    metadata:
+      description: "GNU Image Manipulation Program (was: org.gimp.GIMP flatpak)"
+
+  # ── Office suite ────────────────────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: OnlyOffice
+    properties:
+      id: ONLYOFFICE.DesktopEditors
+      source: winget
+      useLatest: true
+    metadata:
+      description: "ONLYOFFICE Desktop Editors (was: org.onlyoffice.desktopeditors flatpak)"
+
+  # ── Video editor ────────────────────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: Kdenlive
+    properties:
+      id: KDE.Kdenlive
+      source: winget
+      useLatest: true
+    metadata:
+      description: "Kdenlive video editor (was: org.kde.kdenlive flatpak)"
+
+  # ── Messaging ───────────────────────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: Telegram
+    properties:
+      id: Telegram.TelegramDesktop
+      source: winget
+      useLatest: true
+    metadata:
+      description: "Telegram Desktop — secure cloud-based messenger"
+
+  - type: Microsoft.WinGet/Package
+    name: MAX
+    properties:
+      id: CommunicationPlatform.MAX
+      source: winget
+      useLatest: true
+    metadata:
+      description: "MAX — национальный мессенджер"
+
+  - type: Microsoft.WinGet/Package
+    name: Element
+    properties:
+      id: Element.Element
+      source: winget
+      useLatest: true
+    metadata:
+      description: "Element — Matrix-based end-to-end encrypted messenger and secure collaboration app"
+
+  # ── Music streaming ─────────────────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: YandexMusic
+    properties:
+      id: Yandex.Music
+      source: winget
+      useLatest: true
+    metadata:
+      description: "Yandex Music — music and podcast streaming"
+
+  # ── Torrent client ──────────────────────────────────────────────────
+  - type: Microsoft.WinGet/Package
+    name: Transmission
+    properties:
+      id: Transmission.Transmission
+      source: winget
+      useLatest: true
+    metadata:
+      description: "Transmission — cross-platform BitTorrent client"
+
+  # ── Notes ───────────────────────────────────────────────────────────
+  # Flatseal (com.github.tchx84.Flatseal) is a Flatpak permissions manager.
+  # There is no direct Windows equivalent. Windows app permissions are
+  # managed through Settings → Privacy & Security → App permissions.
+  #
+  # To manage Windows app permissions programmatically, consider:
+  #   - AppLocker / WDAC for executable control
+  #   - Windows Privacy settings via Group Policy or MDM

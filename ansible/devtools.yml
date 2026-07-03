@@ -1,0 +1,23 @@
+---
+- name: Install development tools (Docker, VS Code, Java, Node.js)
+  hosts: all
+  become: true
+  vars:
+    java_version: 25
+    nodejs_version: "24.x"
+  roles:
+    - role: geerlingguy.docker
+      docker_users:
+        - "{{ ansible_user | default(ansible_user_id) }}"
+    - role: gantsign.visual-studio-code
+    - role: geerlingguy.java
+      vars:
+        java_packages:
+          - "openjdk-{{ java_version }}-jdk"
+      when: ansible_os_family == "Debian"
+    - role: geerlingguy.java
+      vars:
+        java_packages:
+          - "java-{{ java_version }}-openjdk"
+      when: ansible_os_family == "RedHat"
+    - role: geerlingguy.nodejs

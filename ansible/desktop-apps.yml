@@ -1,0 +1,18 @@
+---
+- name: Install Flatpak desktop applications
+  hosts: all
+  vars:
+    flatpak_apps:
+      - com.obsproject.Studio
+      - com.github.tchx84.Flatseal
+      - org.gimp.GIMP
+      - org.onlyoffice.desktopeditors
+      - org.kde.kdenlive
+
+  tasks:
+    - name: Install Flatpak applications (system-wide)
+      community.general.flatpak:
+        name: "{{ item }}"
+        state: present
+        method: system
+      loop: "{{ flatpak_apps }}"

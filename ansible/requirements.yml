@@ -1,0 +1,14 @@
+---
+roles:
+  - name: geerlingguy.docker
+  - name: gantsign.visual-studio-code
+  - name: rcrawf.zram
+    src: https://github.com/rcrawf/ansible-role-zram
+  - name: diademiemi.flatpak
+  - name: egdoc.rpmfusion
+  - name: geerlingguy.java
+  - name: geerlingguy.nodejs
+
+collections:
+  - name: community.general
+  - name: ansible.posix
