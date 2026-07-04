@@ -7,7 +7,6 @@
     zram_swap_size: "{{ ansible_memtotal_mb }}M"
 
   tasks:
-
     - name: Disable OpenH264 repo via dnf (Fedora)
       community.general.ini_file:
         path: /etc/yum.repos.d/fedora-cisco-openh264.repo
@@ -33,30 +32,6 @@
         name: egdoc.rpmfusion
       vars:
         rpmfusion_enable_nonfree_repo: true
-      when: ansible_os_family == "RedHat"
-
-    - name: Install base packages (Debian)
-      ansible.builtin.apt:
-        name:
-          - wget
-          - curl
-          - git
-          - tree
-          - build-essential
-          - timeshift
-        state: present
-        update_cache: true
-      when: ansible_os_family == "Debian"
-
-    - name: Install base packages (RedHat)
-      ansible.builtin.dnf:
-        name:
-          - wget
-          - curl
-          - git
-          - tree
-          - timeshift
-        state: present
       when: ansible_os_family == "RedHat"
 
     - name: Mask OpenH264 in Flatpak (system-wide)
@@ -102,7 +77,6 @@
       when: ansible_os_family == "Debian"
 
     - name: Install multimedia codecs (RedHat/Fedora via RPM Fusion)
-      when: ansible_os_family == "RedHat"
       ansible.builtin.dnf:
         name:
           - gstreamer1-plugins-base
@@ -111,6 +85,7 @@
           - gstreamer1-plugins-ugly
           - gstreamer1-libav
         state: present
+      when: ansible_os_family == "RedHat"
 
     - name: Apply sysctl kernel parameters
       ansible.posix.sysctl:
