@@ -97,12 +97,3 @@ resources:
       useLatest: true
     metadata:
       description: "Transmission — cross-platform BitTorrent client"
-
-  # ── Notes ───────────────────────────────────────────────────────────
-  # Flatseal (com.github.tchx84.Flatseal) is a Flatpak permissions manager.
-  # There is no direct Windows equivalent. Windows app permissions are
-  # managed through Settings → Privacy & Security → App permissions.
-  #
-  # To manage Windows app permissions programmatically, consider:
-  #   - AppLocker / WDAC for executable control
-  #   - Windows Privacy settings via Group Policy or MDM
