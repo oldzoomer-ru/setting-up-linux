@@ -1,0 +1,28 @@
+autoinstall:
+  version: 1
+  interactive-sections:
+    - network
+    - identity
+    - storage
+  locale: "ru_RU.UTF-8"
+  timezone: "Europe/Moscow"
+  keyboard:
+    layout: "us,ru"
+    toggle: "caps_toggle"
+  refresh-installer:
+    update: true
+  source:
+    id: "ubuntu-desktop-minimal"
+  updates: all
+  codecs:
+    install: true
+  drivers:
+    install: true
+  packages:
+    - ansible
+    - git
+  kernel:
+    flavor: hwe
+  kernel-crash-dumps:
+    enabled: false
+  shutdown: poweroff
