@@ -1,6 +1,6 @@
 services:
   llama-backend:
-    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda13
     container_name: llama-backend
     ports:
       - "3001:8080"
