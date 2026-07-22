@@ -19,6 +19,13 @@ services:
       - ai-network
     restart: unless-stopped
 
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    container_name: kokoro-tts
+    networks:
+      - ai-network
+    restart: unless-stopped
+
   playwright-backend:
     image: mcr.microsoft.com/playwright:v1.60.0-noble
     container_name: playwright-backend
