@@ -7,7 +7,7 @@ services:
     volumes:
       - hf-cache:/root/.cache/huggingface
       - ./models.ini:/presets/models.ini:ro
-    command: --models-preset /presets/models.ini --models-max 1 --no-ui
+    command: --models-preset /presets/models.ini --no-ui
     deploy:
       resources:
         reservations:
