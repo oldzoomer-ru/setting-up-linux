@@ -7,7 +7,7 @@ services:
     volumes:
       - hf-cache:/root/.cache/huggingface
       - ./models.ini:/presets/models.ini:ro
-    command: --models-preset /presets/models.ini --no-ui
+    command: --models-preset /presets/models.ini --no-ui --models-max 1
     deploy:
       resources:
         reservations:
@@ -49,6 +49,7 @@ services:
     depends_on:
       - llama-backend
       - playwright-backend
+      - kokoro-tts
     networks:
       - ai-network
     restart: unless-stopped
