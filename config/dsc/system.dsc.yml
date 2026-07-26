@@ -1,0 +1,89 @@
+# Created using winget configure export 1.29.280
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.3
+$schema: https://raw.githubusercontent.com/PowerShell/DSC/main/schemas/2023/08/config/document.json
+metadata:
+  winget:
+    processor:
+      identifier: "dscv3"
+resources:
+- name: Microsoft.WinGet/Package_bqb50qr5
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "Microsoft.PowerShell: \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430"
+  properties:
+    id: "Microsoft.PowerShell"
+    source: "winget"
+- name: winget_Microsoft.PreIndexed.Package
+  type: Microsoft.WinGet/Source
+  metadata:
+    description: "winget_Microsoft.PreIndexed.Package: \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430"
+    winget:
+      securityContext: "elevated"
+  properties:
+    type: "Microsoft.PreIndexed.Package"
+    trustLevel: "trusted"
+    argument: "https://cdn.winget.microsoft.com/cache"
+    name: "winget"
+- name: winget_Hasleo.BackupSuiteFree
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C Hasleo.BackupSuiteFree"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "Hasleo.BackupSuiteFree"
+    source: "winget"
+- name: winget_TheDocumentFoundation.LibreOffice
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C TheDocumentFoundation.LibreOffice"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "TheDocumentFoundation.LibreOffice"
+    source: "winget"
+- name: winget_VK.VKWorkspace
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C VK.VKWorkspace"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "VK.VKWorkspace"
+    source: "winget"
+- name: winget_CommunicationPlatform.MAX
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C CommunicationPlatform.MAX"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "CommunicationPlatform.MAX"
+    source: "winget"
+- name: winget_Yandex.Music
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C Yandex.Music"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "Yandex.Music"
+    source: "winget"
+- name: winget_Git.Git
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C Git.Git"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "Git.Git"
+    source: "winget"
+- name: winget_Microsoft.VisualStudioCode
+  type: Microsoft.WinGet/Package
+  metadata:
+    description: "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C Microsoft.VisualStudioCode"
+  dependsOn:
+  - winget_Microsoft.PreIndexed.Package
+  properties:
+    id: "Microsoft.VisualStudioCode"
+    source: "winget"
