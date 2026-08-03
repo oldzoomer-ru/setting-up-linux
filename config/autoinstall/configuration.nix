@@ -135,8 +135,8 @@
     isNormalUser = true;
     description = "Егор Гаврилов";
     extraGroups = [ "wheel" "networkmanager" "audio" "video" "libvirtd" ];
-    subUidRanges = [{ startGid = 100000; count = 65536; }];
-    subGidRanges = [{ startGid = 100000; count = 65536; }];
+    subUidRanges = [{ startUid = 100000; count = 65536; }];
+    subGidRanges = [{ startUid = 100000; count = 65536; }];
   };
 
   # --- Переменные окружения
