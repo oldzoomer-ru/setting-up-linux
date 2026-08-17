@@ -1,0 +1,11 @@
+---
+# Общие настройки (переопределяются через командную строку -e).
+nodejs_version: "24.x"          # версия Node.js из репозитория Nodesource
+java_version: 25                 # версия OpenJDK
+dev_user: "{{ ansible_user | default(ansible_user_id) }}"   # пользователь в группе docker
+# Маппинг архитектуры ядра в имя архитектуры для apt
+apt_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ('arm64' if ansible_architecture == 'aarch64' else 'armhf') }}"
+# Селектор ноутбуков Gigabyte (определяется по железу, или вручную: -e gigabyte_laptop=true)
+gigabyte_laptop: "{{ ('gigabyte' in (ansible_system_vendor | default('') | lower))
+                     or ('gigabyte' in (ansible_product_name | default('') | lower))
+                     or ('aorus' in (ansible_product_name | default('') | lower)) }}"

@@ -1,0 +1,55 @@
+---
+# Установка Visual Studio Code из официального репозитория Microsoft (DEB и RPM).
+- name: Ensure apt keyrings directory exists (Debian)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Add Microsoft GPG key (Debian)
+  ansible.builtin.get_url:
+    url: https://packages.microsoft.com/keys/microsoft.asc
+    dest: /etc/apt/keyrings/microsoft.asc
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Add VS Code apt repository (Debian)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/vscode.list
+    mode: "0644"
+    content: |
+      deb [arch={{ apt_arch }} signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/repos/code stable main
+  when: ansible_os_family == "Debian"
+
+- name: Install VS Code (Debian)
+  ansible.builtin.apt:
+    name: code
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Import Microsoft GPG key (RedHat)
+  ansible.builtin.rpm_key:
+    key: https://packages.microsoft.com/keys/microsoft.asc
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Add VS Code yum repository (RedHat)
+  ansible.builtin.copy:
+    dest: /etc/yum.repos.d/vscode.repo
+    mode: "0644"
+    content: |
+      [code]
+      name=Visual Studio Code
+      baseurl=https://packages.microsoft.com/yumrepos/vscode
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+  when: ansible_os_family == "RedHat"
+
+- name: Install VS Code (RedHat)
+  ansible.builtin.dnf:
+    name: code
+    state: present
+  when: ansible_os_family == "RedHat"

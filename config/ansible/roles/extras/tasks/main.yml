@@ -1,0 +1,18 @@
+---
+# Дополнительные инструменты разработки (DEB и RPM).
+- name: Install additional dev tools (Debian)
+  ansible.builtin.apt:
+    name:
+      - build-essential
+      - jq
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install additional dev tools (RedHat)
+  ansible.builtin.dnf:
+    name:
+      - "@development-tools"
+      - jq
+    state: present
+  when: ansible_os_family == "RedHat"

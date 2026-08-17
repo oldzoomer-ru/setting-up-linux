@@ -1,0 +1,7 @@
+---
+# Единая точка входа: быстрая установка программ для разработки.
+#
+# Запуск (из каталога config/ansible):
+#   ansible-playbook site.yml -K      # спросит пароль sudo
+- import_playbook: initial-setup.yml
+- import_playbook: devtools.yml

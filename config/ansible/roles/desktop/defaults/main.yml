@@ -1,0 +1,5 @@
+---
+# Переменные по умолчанию для роли desktop (GNOME/Flatpak/ZRAM).
+openh264_flatpak_id: org.freedesktop.Platform.openh264
+zram_swap_size: "{{ ansible_memtotal_mb }}M"
+zram_generator_package: "{{ 'systemd-zram-generator' if ansible_os_family == 'Debian' else 'zram-generator' }}"

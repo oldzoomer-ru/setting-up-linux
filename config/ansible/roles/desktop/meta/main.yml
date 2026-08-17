@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: oldzoomer
+  description: GNOME/Flatpak system setup (ZRAM swap, Flatpak, OpenH264 masking)
+  license: MIT
+  min_ansible_version: "2.13"
+  platforms: []
+dependencies: []

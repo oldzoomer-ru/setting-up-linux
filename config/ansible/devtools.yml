@@ -1,0 +1,14 @@
+---
+# Быстрая установка инструментов разработки.
+# Всё реализовано на модулях ansible.core (ansible.builtin) и вынесено в роли.
+# Запуск: ansible-playbook devtools.yml -K
+- name: Install development tools
+  hosts: all
+  become: true
+  roles:
+    - nodejs
+    - vscode
+    - docker
+    - java
+    - extras
+

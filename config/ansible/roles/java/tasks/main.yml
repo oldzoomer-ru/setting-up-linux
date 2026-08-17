@@ -1,0 +1,14 @@
+---
+# Установка OpenJDK (DEB и RPM).
+- name: Install Java {{ java_version }} JDK (Debian)
+  ansible.builtin.apt:
+    name: "openjdk-{{ java_version }}-jdk"
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install Java {{ java_version }} JDK (RedHat)
+  ansible.builtin.dnf:
+    name: "java-{{ java_version }}-openjdk"
+    state: present
+  when: ansible_os_family == "RedHat"

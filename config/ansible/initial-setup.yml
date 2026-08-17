@@ -2,42 +2,8 @@
 - name: Universal Linux configuration for GNOME-based distros
   hosts: all
   become: true
-  vars:
-    openh264_flatpak_id: org.freedesktop.Platform.openh264
-    zram_swap_size: "{{ ansible_memtotal_mb }}M"
-
-  tasks:
-    - name: Disable OpenH264 repo via dnf (Fedora)
-      community.general.ini_file:
-        path: /etc/yum.repos.d/fedora-cisco-openh264.repo
-        section: fedora-cisco-openh264
-        option: enabled
-        value: "0"
-        no_extra_spaces: true
-        mode: "0644"
-      when: ansible_distribution == "Fedora"
-
-    - name: Load zram configuration
-      ansible.builtin.include_role:
-        name: rcrawf.zram
-
-    - name: Load Flatpak configuration
-      ansible.builtin.include_role:
-        name: diademiemi.flatpak
-      vars:
-        flatpak_install_gnome: true
-
-    - name: Load RPM Fusion configuration (Only for RedHat/Fedora)
-      ansible.builtin.include_role:
-        name: egdoc.rpmfusion
-      vars:
-        rpmfusion_enable_nonfree_repo: true
-      when: ansible_os_family == "RedHat"
-
-    - name: Mask OpenH264 in Flatpak (system-wide)
-      ansible.builtin.command: flatpak mask {{ openh264_flatpak_id }} --system
-      environment:
-        LANG: C.UTF-8
-      register: flatpak_mask_result
-      changed_when: "'is already masked' not in flatpak_mask_result.stderr"
-      failed_when: flatpak_mask_result.rc != 0 and 'is already masked' not in flatpak_mask_result.stderr
+  roles:
+    - desktop
+    # Специфика железа: применяется только на ноутбуках Gigabyte
+    - role: gigabyte
+      when: gigabyte_laptop | bool

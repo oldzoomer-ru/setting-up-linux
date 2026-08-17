@@ -1,0 +1,88 @@
+---
+# Установка Docker CE из официального репозитория + настройка службы (DEB и RPM).
+- name: Install Docker prerequisites (Debian)
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure apt keyrings directory exists (Debian)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Add Docker GPG key (Debian)
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Add Docker apt repository (Debian)
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    mode: "0644"
+    content: |
+      deb [arch={{ apt_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+  when: ansible_os_family == "Debian"
+
+- name: Install Docker (Debian)
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Import Docker GPG key (RedHat)
+  ansible.builtin.rpm_key:
+    key: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Add Docker yum repository (RedHat)
+  ansible.builtin.copy:
+    dest: /etc/yum.repos.d/docker-ce.repo
+    mode: "0644"
+    content: |
+      [docker-ce-stable]
+      name=Docker CE Stable - $basearch
+      baseurl=https://download.docker.com/linux/{{ ansible_distribution | lower }}/$releasever/$basearch/stable
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg
+  when: ansible_os_family == "RedHat"
+
+- name: Install Docker (RedHat)
+  ansible.builtin.dnf:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Enable and start Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ dev_user }}"
+    groups: docker
+    append: true
+  # Группа применится после перезахода в систему

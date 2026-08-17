@@ -1,0 +1,58 @@
+---
+# Системные/GNOME-настройки десктопа: ZRAM-своп, Flatpak, маскировка OpenH264.
+# Реализовано на модулях ansible.core (ansible.builtin) — без внешних ролей.
+- name: Install zram-generator (Debian)
+  ansible.builtin.apt:
+    name: "{{ zram_generator_package }}"
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install zram-generator (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ zram_generator_package }}"
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Configure zram
+  ansible.builtin.copy:
+    dest: /etc/systemd/zram-generator.conf
+    mode: "0644"
+    content: |
+      [zram0]
+      zram-size = {{ zram_swap_size }}
+
+- name: Enable and start zram setup
+  ansible.builtin.systemd:
+    name: systemd-zram-setup@zram0.service
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Install Flatpak (Debian)
+  ansible.builtin.apt:
+    name: flatpak
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Install Flatpak (RedHat)
+  ansible.builtin.dnf:
+    name: flatpak
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Add Flathub remote
+  ansible.builtin.command: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+  environment:
+    LANG: C.UTF-8
+  register: flathub_result
+  changed_when: "'already' not in flathub_result.stdout and 'already' not in flathub_result.stderr"
+
+- name: Mask OpenH264 in Flatpak (system-wide)
+  ansible.builtin.command: flatpak mask {{ openh264_flatpak_id }} --system
+  environment:
+    LANG: C.UTF-8
+  register: flatpak_mask_result
+  changed_when: "'is already masked' not in flatpak_mask_result.stderr"
+  failed_when: flatpak_mask_result.rc != 0 and 'is already masked' not in flatpak_mask_result.stderr

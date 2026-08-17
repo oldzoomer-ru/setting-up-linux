@@ -1,0 +1,46 @@
+---
+# Установка Node.js из репозитория Nodesource (DEB и RPM).
+# Официальный setup-скрипт Nodesource сам прописывает репозиторий и ключ.
+- name: Check if Node.js is already installed
+  ansible.builtin.command: node --version
+  register: node_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install Node.js via Nodesource (Debian)
+  block:
+    - name: Download Nodesource setup script (Debian)
+      ansible.builtin.get_url:
+        url: "https://deb.nodesource.com/setup_{{ nodejs_version }}"
+        dest: /tmp/nodesource_setup_deb.sh
+        mode: "0755"
+
+    - name: Run Nodesource setup (Debian)
+      ansible.builtin.shell: /tmp/nodesource_setup_deb.sh
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+
+    - name: Install Node.js package (Debian)
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: true
+  when: ansible_os_family == "Debian" and node_check.rc != 0
+
+- name: Install Node.js via Nodesource (RedHat)
+  block:
+    - name: Download Nodesource setup script (RedHat)
+      ansible.builtin.get_url:
+        url: "https://rpm.nodesource.com/setup_{{ nodejs_version }}"
+        dest: /tmp/nodesource_setup_rpm.sh
+        mode: "0755"
+
+    - name: Run Nodesource setup (RedHat)
+      ansible.builtin.shell: /tmp/nodesource_setup_rpm.sh
+
+    - name: Install Node.js package (RedHat)
+      ansible.builtin.dnf:
+        name: nodejs
+        state: present
+  when: ansible_os_family == "RedHat" and node_check.rc != 0

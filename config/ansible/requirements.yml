@@ -1,10 +1,5 @@
 ---
-roles:
-  - name: rcrawf.zram
-    src: https://github.com/rcrawf/ansible-role-zram
-  - name: diademiemi.flatpak
-  - name: egdoc.rpmfusion
-
-collections:
-  - name: community.general
-  - name: ansible.posix
+# Всё реализовано на модулях ansible.core (ansible.builtin).
+# Внешние роли и коллекции НЕ требуются.
+roles: []
+collections: []
