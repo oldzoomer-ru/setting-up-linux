@@ -1,0 +1,4 @@
+fastapi==0.162.0
+json_repair==0.64.2
+openai==3.37.0
+uvicorn==0.54.0
