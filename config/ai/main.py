@@ -66,12 +66,17 @@ def maybe_clean_text(text: str, aggressive: bool = False) -> str:
     """
     aggressive=False: only strip markdown fences (safe for any content).
     aggressive=True : also attempt JSON repair (only when response_format set).
+    Note: JSON repair is never applied when the text contains a `<tool_call`
+    block — that text is model output that happens to look JSON-ish, and
+    repairing it can corrupt the payload.
     """
     if not text:
         return text
     stripped = text.strip()
     if not stripped:
         return text
+    if "<tool_call" in stripped:
+        aggressive = False
     if stripped.startswith("```"):
         body = _strip_fence(stripped)
         return _try_repair_json(body) if aggressive else body
@@ -102,72 +107,107 @@ def _extract_url(block: dict, *keys) -> str | None:
     return None
 
 
-# ==================== XML TOOL PARSING ====================
-
-_PARAM_PATTERNS = [
-    re.compile(r'<parameter=([\w_]+)>(.*?)</parameter(?:=\1)?>', re.DOTALL),
-    re.compile(r'<parameter\s+name=["\']([\w_]+)["\']\s*>(.*?)</parameter>', re.DOTALL),
-    re.compile(r'<parameter>([\w_]+)>(.*?)</parameter>', re.DOTALL),
-    re.compile(r'<parameter\s+([\w_]+)=["\']([^"\']*)["\']\s*/?>'),
-]
-
-
-def _parse_xml_params(block: str) -> dict:
-    params = {}
-    for pattern in _PARAM_PATTERNS:
-        for m in pattern.finditer(block):
-            params.setdefault(m.group(1).strip(), m.group(2).strip())
-    return params
-
-
-def _parse_tool_use_block(block: str) -> dict | None:
-    name_match = re.search(r'<name>\s*(.*?)\s*</name>', block, re.DOTALL)
-    if not name_match:
+def _normalize_usage_dict(usage_obj) -> dict | None:
+    """Normalize usage object or dict to a plain dict with int values."""
+    if usage_obj is None:
         return None
-    name = name_match.group(1).strip()
-    if not name:
+    if isinstance(usage_obj, dict):
+        p = usage_obj.get("prompt_tokens") or 0
+        c = usage_obj.get("completion_tokens") or 0
+        t = usage_obj.get("total_tokens") or (p + c)
+        return {"prompt_tokens": int(p), "completion_tokens": int(c), "total_tokens": int(t)}
+    p = getattr(usage_obj, "prompt_tokens", 0) or 0
+    c = getattr(usage_obj, "completion_tokens", 0) or 0
+    t = getattr(usage_obj, "total_tokens", 0) or (p + c)
+    return {"prompt_tokens": int(p), "completion_tokens": int(c), "total_tokens": int(t)}
+
+
+# ==================== TOOL CALL PARSING (Qwen format) ====================
+#
+# Qwen3 / Qwen3.6 emit tool calls as:
+#
+#   <tool_call>
+#   {"name": "fn_name", "arguments": {"a": 1}}
+#   </tool_call>
+#
+# This module handles both native `tool_calls` (from LM Studio) and the
+# textual fallback when the backend fails to parse them server-side.
+
+
+_OPEN_PREFIX = "<tool_call"
+_CLOSE_TAG = "</tool_call>"
+
+
+def _extract_inner(block: str) -> str:
+    """Strip <tool_call...> and </tool_call> wrappers from a block."""
+    inner = re.sub(r'<tool_call[^>]*>', '', block, count=1)
+    inner = re.sub(r'</tool_call>\s*$', '', inner)
+    return inner.strip()
+
+
+def _parse_tool_call_json(inner: str) -> dict | None:
+    """Parse the JSON body of a Qwen <tool_call> block."""
+    inner = inner.strip()
+    if not inner:
         return None
+    obj = None
+    try:
+        obj = json.loads(inner)
+    except Exception:
+        try:
+            fixed = repair_json(inner)
+            obj = json.loads(fixed) if isinstance(fixed, str) else fixed
+        except Exception:
+            return None
+    if not isinstance(obj, dict):
+        return None
+    name = obj.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    args = obj.get("arguments")
+    if args is None:
+        args = obj.get("parameters", {})
+    if not isinstance(args, str):
+        args = json.dumps(args, ensure_ascii=False)
     return {
         "type": "function_call",
         "id": f"fc_{uuid.uuid4().hex[:24]}",
         "call_id": f"call_{uuid.uuid4().hex[:24]}",
-        "name": name,
-        "arguments": json.dumps(_parse_xml_params(block), ensure_ascii=False),
+        "name": name.strip(),
+        "arguments": args,
         "status": "completed",
     }
 
 
 def _split_text_and_tools(raw_text: str) -> tuple[str, list[dict]]:
-    if "<tool_use" not in raw_text:
+    if _OPEN_PREFIX not in raw_text:
         return raw_text, []
-    tool_blocks = re.findall(r'<tool_use[^>]*>(.*?)</tool_use>', raw_text, re.DOTALL)
-    clean_text = re.sub(r'<tool_use[^>]*>.*?</tool_use>', '', raw_text, flags=re.DOTALL).strip()
+    tool_blocks = re.findall(r'<tool_call[^>]*>(.*?)</tool_call>', raw_text, re.DOTALL)
+    clean_text = re.sub(r'<tool_call[^>]*>.*?</tool_call>', '', raw_text, flags=re.DOTALL).strip()
     items = []
-    for block in tool_blocks:
-        item = _parse_tool_use_block(block)
+    for inner in tool_blocks:
+        item = _parse_tool_call_json(inner)
         if item:
             items.append(item)
     return clean_text, items
 
 
-class ToolUseStreamParser:
-    """Detects <tool_use>...</tool_use> blocks in streaming text."""
-    OPEN = "<tool_use"
-    CLOSE = "</tool_use>"
+class ToolCallStreamParser:
+    """Detects <tool_call>...</tool_call> blocks in streaming text."""
 
     def __init__(self):
-        self.mode = "text"
-        self.pending = ""
+        self.mode = "text"          # "text" | "in_tool"
+        self.pending = ""           # bytes not yet classified
         self.tool_buf = ""
-        self.tools: list[str] = []
+        self.tools: list[str] = []  # complete raw blocks, including tags
 
     def feed(self, chunk: str) -> str:
         if not chunk:
             return ""
         if self.mode == "in_tool":
             self.tool_buf += chunk
-            if self.CLOSE in self.tool_buf:
-                idx = self.tool_buf.find(self.CLOSE) + len(self.CLOSE)
+            if _CLOSE_TAG in self.tool_buf:
+                idx = self.tool_buf.find(_CLOSE_TAG) + len(_CLOSE_TAG)
                 self.tools.append(self.tool_buf[:idx])
                 remainder = self.tool_buf[idx:]
                 self.tool_buf = ""
@@ -176,10 +216,11 @@ class ToolUseStreamParser:
             return ""
 
         self.pending += chunk
-        idx = self.pending.find(self.OPEN)
+        idx = self.pending.find(_OPEN_PREFIX)
         if idx == -1:
-            for n in range(len(self.OPEN) - 1, 0, -1):
-                if self.pending.endswith(self.OPEN[:n]):
+            # keep a partial prefix at the tail
+            for n in range(len(_OPEN_PREFIX) - 1, 0, -1):
+                if self.pending.endswith(_OPEN_PREFIX[:n]):
                     emit = self.pending[:-n]
                     self.pending = self.pending[-n:]
                     return emit
@@ -188,12 +229,12 @@ class ToolUseStreamParser:
             return emit
 
         emit = self.pending[:idx]
-        rest = self.pending[idx + len(self.OPEN):]
+        rest = self.pending[idx + len(_OPEN_PREFIX):]
         self.pending = ""
         self.mode = "in_tool"
-        self.tool_buf = self.OPEN + rest
-        if self.CLOSE in self.tool_buf:
-            cidx = self.tool_buf.find(self.CLOSE) + len(self.CLOSE)
+        self.tool_buf = _OPEN_PREFIX + rest
+        if _CLOSE_TAG in self.tool_buf:
+            cidx = self.tool_buf.find(_CLOSE_TAG) + len(_CLOSE_TAG)
             self.tools.append(self.tool_buf[:cidx])
             remainder = self.tool_buf[cidx:]
             self.tool_buf = ""
@@ -206,10 +247,13 @@ class ToolUseStreamParser:
             text = self.pending
             self.pending = ""
             return text, self.tools
-        # in_tool mode: incomplete block — drop silently
+
+        # in_tool mode: incomplete block — preserve whatever we have as text
+        # (dropping it silently loses user-visible content).
+        partial = self.tool_buf
         self.tool_buf = ""
         self.mode = "text"
-        return "", self.tools
+        return partial, self.tools
 
 
 class FenceStripper:
@@ -435,7 +479,9 @@ def convert_text_format(text_config) -> dict | None:
             "json_schema": {
                 "name": fmt.get("name", "output"),
                 "schema": fmt.get("schema") or {},
-                "strict": False,  # LM Studio/llama.cpp often ignore strict
+                # pass through whatever client asked; LM Studio will ignore
+                # strict itself if it doesn't support it
+                "strict": bool(fmt.get("strict", False)),
             },
         }
     if ftype == "json_object":
@@ -463,19 +509,26 @@ def _apply_generation_params(body: dict, create_kwargs: dict, extra_body: dict):
     if body.get("top_k") is not None:
         extra_body["top_k"] = body["top_k"]
 
-    if body.get("logprobs") is not None:
-        create_kwargs["logprobs"] = bool(body["logprobs"])
-        if body.get("top_logprobs") is not None:
+    # top_logprobs implies logprobs in the Responses API, but OpenAI SDK /
+    # Chat Completions requires logprobs=True explicitly.
+    if body.get("top_logprobs") is not None:
+        create_kwargs["logprobs"] = True
+        try:
             create_kwargs["top_logprobs"] = int(body["top_logprobs"])
+        except (TypeError, ValueError):
+            pass
+    elif body.get("logprobs") is not None:
+        create_kwargs["logprobs"] = bool(body["logprobs"])
 
 
 # ==================== SYNC PAYLOAD ====================
 
 def _usage_sync(completion, input_items, raw_text, reasoning_text, tool_calls):
-    if completion.usage is not None:
-        prompt_tokens = completion.usage.prompt_tokens or 0
-        completion_tokens = completion.usage.completion_tokens or 0
-        total_tokens = completion.usage.total_tokens or (prompt_tokens + completion_tokens)
+    usage = _normalize_usage_dict(getattr(completion, "usage", None))
+    if usage is not None and usage["total_tokens"] > 0:
+        prompt_tokens = usage["prompt_tokens"]
+        completion_tokens = usage["completion_tokens"]
+        total_tokens = usage["total_tokens"]
     else:
         prompt_tokens = len(str(input_items)) // 4
         completion_tokens = (
@@ -506,7 +559,7 @@ def create_responses_api_payload(
 
     raw_text = message.content or ""
     reasoning_text = _extra(message, "reasoning_content")
-    tool_calls = message.tool_calls or []
+    native_tool_calls = message.tool_calls or []
 
     output = []
 
@@ -519,30 +572,31 @@ def create_responses_api_payload(
         })
 
     if raw_text:
-        if tool_calls:
-            clean_text = maybe_clean_text(raw_text, aggressive=json_mode)
-            if clean_text:
-                output.append({
-                    "id": f"msg_{uuid.uuid4().hex[:24]}",
-                    "type": "message",
-                    "status": "completed",
-                    "role": "assistant",
-                    "content": [{"type": "output_text", "text": clean_text, "annotations": []}],
-                })
+        if native_tool_calls:
+            # Native tools take priority; clean but do not attempt JSON repair
+            # (text may contain tool_call XML that we must not mangle).
+            clean_text = maybe_clean_text(
+                raw_text, aggressive=json_mode and "<tool_call" not in raw_text
+            )
+            xml_items: list[dict] = []
         else:
             clean_text, xml_items = _split_text_and_tools(raw_text)
-            clean_text = maybe_clean_text(clean_text, aggressive=json_mode)
-            if clean_text:
-                output.append({
-                    "id": f"msg_{uuid.uuid4().hex[:24]}",
-                    "type": "message",
-                    "status": "completed",
-                    "role": "assistant",
-                    "content": [{"type": "output_text", "text": clean_text, "annotations": []}],
-                })
-            output.extend(xml_items)
+            if xml_items:
+                clean_text = maybe_clean_text(clean_text, aggressive=False)
+            else:
+                clean_text = maybe_clean_text(clean_text, aggressive=json_mode)
 
-    for tc in tool_calls:
+        if clean_text:
+            output.append({
+                "id": f"msg_{uuid.uuid4().hex[:24]}",
+                "type": "message",
+                "status": "completed",
+                "role": "assistant",
+                "content": [{"type": "output_text", "text": clean_text, "annotations": []}],
+            })
+        output.extend(xml_items)
+
+    for tc in native_tool_calls:
         fn = tc.function
         output.append({
             "type": "function_call",
@@ -569,7 +623,7 @@ def create_responses_api_payload(
         "model": MODEL_IDENTIFIER,
         "status": status,
         "output": output,
-        "usage": _usage_sync(completion, input_items, raw_text, reasoning_text, tool_calls),
+        "usage": _usage_sync(completion, input_items, raw_text, reasoning_text, native_tool_calls),
     }
     if incomplete_details:
         payload["incomplete_details"] = incomplete_details
@@ -580,6 +634,21 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
+def _sse_failed(response_id: str, created_at: int, err_message: str) -> str:
+    return _sse("response.failed", {
+        "type": "response.failed",
+        "response": {
+            "id": response_id,
+            "object": "response",
+            "created_at": created_at,
+            "model": MODEL_IDENTIFIER,
+            "status": "failed",
+            "output": [],
+            "error": {"code": "stream_error", "message": err_message},
+        },
+    })
+
+
 # ==================== HTTP HANDLER ====================
 
 @app.post("/v1/responses")
@@ -587,6 +656,8 @@ async def handle_openai_responses_api(request: Request):
     try:
         body = await request.json()
     except Exception:
+        body = {}
+    if not isinstance(body, dict):
         body = {}
 
     raw_input = body.get("input")
@@ -596,11 +667,26 @@ async def handle_openai_responses_api(request: Request):
         raw_input = [{"role": "user", "content": "Hello"}]
 
     instructions = body.get("instructions")
-    should_stream = bool(body.get("stream", False))
+
+    stream_flag = body.get("stream", False)
+    if isinstance(stream_flag, str):
+        should_stream = stream_flag.lower() == "true"
+    else:
+        should_stream = bool(stream_flag)
 
     messages = transform_input_to_lm_studio(raw_input)
     if instructions:
-        messages = [{"role": "system", "content": instructions}] + messages
+        if messages and messages[0].get("role") == "system":
+            existing = messages[0].get("content") or ""
+            if isinstance(existing, str) and isinstance(instructions, str):
+                messages[0] = {
+                    "role": "system",
+                    "content": instructions + "\n\n" + existing,
+                }
+            else:
+                messages = [{"role": "system", "content": instructions}] + messages
+        else:
+            messages = [{"role": "system", "content": instructions}] + messages
 
     # --- Reasoning config ---
     preserve_thinking = body.get("preserve_thinking")
@@ -651,11 +737,15 @@ async def handle_openai_responses_api(request: Request):
         try:
             completion = await lm_client.chat.completions.create(**create_kwargs)
         except Exception as e:
-            return JSONResponse(status_code=502, content={"error": {"message": f"LM Studio error: {e}"}})
+            return JSONResponse(
+                status_code=502,
+                content={"error": {"message": f"LM Studio error: {e}"}},
+            )
 
         if not completion.choices:
             return JSONResponse(
-                status_code=502, content={"error": {"message": "Empty choices from LM Studio"}}
+                status_code=502,
+                content={"error": {"message": "Empty choices from LM Studio"}},
             )
 
         return JSONResponse(
@@ -678,10 +768,39 @@ async def handle_openai_responses_api(request: Request):
 
         tool_calls: dict[int, dict] = {}
         finish_reason = None
-        stream_usage = None
+        stream_usage: dict | None = None
 
         fence_stripper = FenceStripper()
-        xml_parser = ToolUseStreamParser()
+        xml_parser = ToolCallStreamParser()
+
+        async def ensure_message():
+            """Emit `output_item.added` + `content_part.added` lazily, only
+            when there is real text to emit. Prevents an empty `message`
+            item in the stream that the sync path would have dropped."""
+            nonlocal message_id, message_index, next_index
+            if message_id is not None:
+                return
+            message_id = f"msg_{uuid.uuid4().hex[:24]}"
+            message_index = next_index
+            next_index += 1
+            yield _sse("response.output_item.added", {
+                "type": "response.output_item.added",
+                "output_index": message_index,
+                "item": {
+                    "id": message_id,
+                    "type": "message",
+                    "status": "in_progress",
+                    "role": "assistant",
+                    "content": [],
+                },
+            })
+            yield _sse("response.content_part.added", {
+                "type": "response.content_part.added",
+                "item_id": message_id,
+                "output_index": message_index,
+                "content_index": 0,
+                "part": {"type": "output_text", "text": "", "annotations": []},
+            })
 
         yield _sse("response.created", {
             "type": "response.created",
@@ -702,17 +821,19 @@ async def handle_openai_responses_api(request: Request):
                 "type": "error",
                 "error": {"message": f"LM Studio error: {e}"},
             })
+            yield _sse_failed(response_id, created_at, f"LM Studio error: {e}")
             return
 
         try:
             async for chunk in stream:
-                # Usage may come on the final chunk
+                # Usage may come on the final chunk (dict or object).
                 usage_obj = getattr(chunk, "usage", None)
                 if usage_obj is None:
                     extra = getattr(chunk, "model_extra", {}) or {}
                     usage_obj = extra.get("usage")
-                if usage_obj is not None:
-                    stream_usage = usage_obj
+                normalized = _normalize_usage_dict(usage_obj)
+                if normalized is not None:
+                    stream_usage = normalized
 
                 if not chunk.choices:
                     continue
@@ -756,35 +877,14 @@ async def handle_openai_responses_api(request: Request):
                         "delta": reasoning_delta,
                     })
 
-                # --- TEXT (fence strip + XML tool detection) ---
+                # --- TEXT (fence strip + tool-call XML detection) ---
                 chunk_text = delta.content or ""
                 if chunk_text:
-                    if message_id is None:
-                        message_id = f"msg_{uuid.uuid4().hex[:24]}"
-                        message_index = next_index
-                        next_index += 1
-                        yield _sse("response.output_item.added", {
-                            "type": "response.output_item.added",
-                            "output_index": message_index,
-                            "item": {
-                                "id": message_id,
-                                "type": "message",
-                                "status": "in_progress",
-                                "role": "assistant",
-                                "content": [],
-                            },
-                        })
-                        yield _sse("response.content_part.added", {
-                            "type": "response.content_part.added",
-                            "item_id": message_id,
-                            "output_index": message_index,
-                            "content_index": 0,
-                            "part": {"type": "output_text", "text": "", "annotations": []},
-                        })
-
                     filtered = fence_stripper.feed(chunk_text)
                     emitted = xml_parser.feed(filtered)
                     if emitted:
+                        async for ev in ensure_message():
+                            yield ev
                         full_text += emitted
                         yield _sse("response.output_text.delta", {
                             "type": "response.output_text.delta",
@@ -840,14 +940,17 @@ async def handle_openai_responses_api(request: Request):
                 "type": "error",
                 "error": {"message": f"Stream error: {e}"},
             })
-            return  # ← не даём провалиться в финализацию
+            yield _sse_failed(response_id, created_at, f"Stream error: {e}")
+            return
 
         # --- Flush streaming parsers ---
         xml_tool_blocks: list[str] = []
         try:
             tail = fence_stripper.flush()
             emitted = xml_parser.feed(tail)
-            if emitted and message_id:
+            if emitted:
+                async for ev in ensure_message():
+                    yield ev
                 full_text += emitted
                 yield _sse("response.output_text.delta", {
                     "type": "response.output_text.delta",
@@ -858,7 +961,9 @@ async def handle_openai_responses_api(request: Request):
                 })
 
             remaining, xml_tool_blocks = xml_parser.flush()
-            if remaining and message_id:
+            if remaining:
+                async for ev in ensure_message():
+                    yield ev
                 full_text += remaining
                 yield _sse("response.output_text.delta", {
                     "type": "response.output_text.delta",
@@ -868,6 +973,7 @@ async def handle_openai_responses_api(request: Request):
                     "delta": remaining,
                 })
         except Exception:
+            # Never let parser cleanup break finalization.
             pass
 
         # ==================== FINALIZATION ====================
@@ -934,7 +1040,7 @@ async def handle_openai_responses_api(request: Request):
 
         # --- XML fallback tools ---
         for block in xml_tool_blocks:
-            parsed = _parse_tool_use_block(block)
+            parsed = _parse_tool_call_json(_extract_inner(block))
             if not parsed:
                 continue
             output_index = next_index
@@ -998,10 +1104,10 @@ async def handle_openai_responses_api(request: Request):
         final_output = [item for _, item in collected]
 
         # --- Usage ---
-        if stream_usage is not None:
-            prompt_tokens = stream_usage.prompt_tokens or 0
-            completion_tokens = stream_usage.completion_tokens or 0
-            total_tokens = stream_usage.total_tokens or (prompt_tokens + completion_tokens)
+        if stream_usage is not None and stream_usage["total_tokens"] > 0:
+            prompt_tokens = stream_usage["prompt_tokens"]
+            completion_tokens = stream_usage["completion_tokens"]
+            total_tokens = stream_usage["total_tokens"]
         else:
             prompt_tokens = len(str(raw_input)) // 4
             completion_tokens = (
