@@ -4,6 +4,7 @@ autoinstall:
     - network
     - identity
     - storage
+    - postinstall
   locale: "ru_RU.UTF-8"
   timezone: "Europe/Moscow"
   keyboard:
@@ -23,3 +24,12 @@ autoinstall:
   kernel-crash-dumps:
     enabled: false
   shutdown: poweroff
+  # Post-install configuration
+  postinstall:
+    # Run first-boot initialization script
+    # This injects settings from GitHub and runs Ansible setup
+    run_command: "/tmp/setting-up-linux/config/autoinstall/first-boot-setup.sh"
+    # To inject settings from GitHub, set GITHUB_TOKEN environment variable:
+    # GITHUB_TOKEN=your_token_here ./setup-wrapper.sh
+    # To skip GitHub injection, run without the token
+    # Note: On first actual run, remove --dry-run equivalent from wrapper

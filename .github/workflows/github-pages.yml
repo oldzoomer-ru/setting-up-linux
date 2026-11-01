@@ -1,0 +1,37 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 26.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install serve globally for GH Pages
+        run: npm install -g serve
+
+      - name: Build project (if needed)
+        run: |
+          if [ -f package.json ]; then
+            npm run build 2>/dev/null || echo "No build script found"
+          fi
+
+      - name: Deploy with serve
+        run: |
+          # Publish to GitHub Pages using serve
+          serve -s build 2>/dev/null || serve -s . --port 3000

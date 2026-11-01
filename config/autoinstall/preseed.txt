@@ -107,4 +107,7 @@ d-i preseed/late_command string \
   # --- Шрифты Microsoft и unrar ---
   echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | in-target debconf-set-selections; \
   in-target apt-get install -y ttf-mscorefonts-installer unrar; \
+  # --- Post-install configuration ---
+  # Run first-boot initialization script (same as autoinstall.yaml postinstall)
+  /target/bin/bash /root/first-boot-setup.sh || true
   in-target apt-get install -y firmware-linux firmware-linux-nonfree || true

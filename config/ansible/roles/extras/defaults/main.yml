@@ -1,2 +1,9 @@
 ---
-# Дополнительные инструменты разработки (DEB и RPM).
+# Переменные по умолчанию для roli extras (дополнительные инструменты).
+# Значения могут быть переопределены из config/setup.env или командной строкой -e
+dev_packages_debian:
+  - build-essential
+  - jq
+dev_packages_rhel:
+  - "@development-tools"
+  - jq

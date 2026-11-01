@@ -1,2 +1,4 @@
 ---
-java_version: 25
+# Переменные по умолчанию для roli java (OpenJDK).
+# Значения могут быть переопределены из config/setup.env или командной строкой -e
+java_version: "{{ lookup('env', 'JAVA_VERSION') | default(25) }}"

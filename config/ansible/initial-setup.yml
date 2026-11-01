@@ -2,8 +2,22 @@
 - name: Universal Linux configuration for GNOME-based distros
   hosts: all
   become: true
+  # Source centralized configuration
+  environment:
+    APT_ARCH: "{{ 'amd64' if ansible_architecture == 'x86_64' else ('arm64' if ansible_architecture == 'aarch64' else 'armhf') }}"
+    NODEJS_VERSION: "{{ nodejs_version }}"
+    JAVA_VERSION: "{{ java_version }}"
+    DEV_USER: "{{ dev_user }}"
+    ZRAM_SWAP_SIZE: "{{ zram_swap_size }}"
+    ZRAM_GENERATOR_PACKAGE: "{{ zram_generator_package }}"
+    GIGABYTE_LAPTOP: "{{ gigabyte_laptop }}"
   roles:
     - desktop
     # Специфика железа: применяется только на ноутбуках Gigabyte
     - role: gigabyte
       when: gigabyte_laptop | bool
+    - docker
+    - extras
+    - vscode
+    - java
+    - nodejs

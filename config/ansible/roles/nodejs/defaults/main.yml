@@ -1,2 +1,4 @@
 ---
-nodejs_version: "24.x"
+# Переменные по умолчанию для роли nodejs (Node.js).
+# Значения могут быть переопределены из config/setup.env или командной строкой -e
+nodejs_version: "{{ lookup('env', 'NODEJS_VERSION') | default('26.x') }}"

@@ -53,3 +53,12 @@
     name: code
     state: present
   when: ansible_os_family == "RedHat"
+
+- name: Install VS Code extensions (global)
+  block:
+    - name: Install extensions list
+      ansible.builtin.command: code --install-extension {{ item }}
+      loop: "{{ vscode_extensions }}"
+      changed_when: false
+      ignore_errors: true
+  when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"

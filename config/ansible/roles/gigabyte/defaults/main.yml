@@ -1,2 +1,4 @@
 ---
-gigabyte_laptop: false
+# Переменные по умолчанию для roli gigabyte (специфика hardware).
+# Значения могут быть переопределены из config/setup.env или командной строкой -e
+gigabyte_laptop: "{{ lookup('env', 'GIGABYTE_LAPTOP') | default(false) }}"

@@ -1,3 +1,5 @@
 ---
-apt_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ('arm64' if ansible_architecture == 'aarch64' else 'armhf') }}"
-dev_user: "{{ ansible_user | default(ansible_user_id) }}"
+# Переменные по умолчанию для роли docker (Docker CE).
+# Значения могут быть переопределены из config/setup.env или командной строкой -e
+apt_arch: "{{ lookup('env', 'APT_ARCH') | default('{{ 'amd64' if ansible_architecture == 'x86_64' else ('arm64' if ansible_architecture == 'aarch64' else 'armhf') }}') }}"
+dev_user: "{{ lookup('env', 'DEV_USER') | default('{{ ansible_user | default(ansible_user_id) }}') }}"
