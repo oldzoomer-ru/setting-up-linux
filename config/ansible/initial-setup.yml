@@ -18,6 +18,5 @@
       when: gigabyte_laptop | bool
     - docker
     - extras
-    - vscode
     - java
     - nodejs

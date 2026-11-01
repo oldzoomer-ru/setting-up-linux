@@ -4,6 +4,8 @@
 dev_packages_debian:
   - build-essential
   - jq
+  - uv
 dev_packages_rhel:
   - "@development-tools"
   - jq
+  - uv

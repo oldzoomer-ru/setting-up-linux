@@ -46,3 +46,11 @@
   when: ansible_os_family == "RedHat" and node_check.rc != 0
 
 
+
+
+- name: Install cline globally via npm
+  ansible.builtin.command: npm install -g cline
+  changed_when: false
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/home/{{ dev_user }}/.local/bin"
+  when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
