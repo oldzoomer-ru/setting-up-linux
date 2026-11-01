@@ -1,0 +1,110 @@
+### Debian Trixie preseed (LUKS, интерактивные креды, Ethernet-приоритет,
+### gnome-core, NM fix через /etc/network/interfaces, LVM с резервом,
+### MS-шрифты + unrar) ###
+
+### 1. Локализация и клавиатура ###
+d-i debian-installer/locale string ru_RU.UTF-8
+d-i debian-installer/language string ru
+d-i debian-installer/country string RU
+d-i localechooser/supported-locales multiselect ru_RU.UTF-8
+d-i keyboard-configuration/xkb-keymap select us,ru
+d-i keyboard-configuration/toggle select caps_toggle
+
+### 2. Часовой пояс ###
+d-i time/zone string Europe/Moscow
+d-i clock-setup/utc boolean true
+d-i clock-setup/ntp boolean true
+
+### 3. Интерактивность ###
+# В загрузочной строке обязательно: auto=true priority=critical
+d-i debconf/priority select critical
+
+### 4. Сеть (приоритет Ethernet, запрос Wi-Fi пароля при необходимости,
+###    хостнейм и домен — интерактивно) ###
+d-i netcfg/choose_interface select auto
+# Хостнейм и домен НЕ задаются — установщик запросит их интерактивно.
+# d-i netcfg/get_hostname string debian
+# d-i netcfg/get_domain string localdomain
+d-i netcfg/disable_dhcp boolean false
+# Пароль Wi-Fi НЕ задаётся — будет запрошен интерактивно при отсутствии Ethernet.
+# d-i netcfg/wireless_wpa string <ПАРОЛЬ_WIFI>
+d-i netcfg/wireless_show_essids select manual
+
+### 5. Учётная запись (интерактивно) ###
+# Все параметры passwd/* закомментированы — установщик запросит их.
+# d-i passwd/root-password password <ПАРОЛЬ_ROOT>
+# d-i passwd/root-password-again password <ПАРОЛЬ_ROOT>
+# d-i passwd/user-fullname string Debian User
+# d-i passwd/username string debian
+# d-i passwd/user-password password <ПАРОЛЬ>
+# d-i passwd/user-password-again password <ПАРОЛЬ>
+
+### 6. Шифрованная разметка диска (LUKS + LVM) ###
+d-i partman-auto/method string crypto
+d-i partman-auto/choose_recipe select atomic
+# Оставляем ~10% свободного места в VG.
+d-i partman-auto-lvm/guided_size string 90%
+d-i partman-auto-lvm/new_vg_name string vg0
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-md/device_remove_md boolean true
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+# Парольная фраза LUKS НЕ задаётся — будет запрошена интерактивно.
+# d-i partman-crypto/passphrase password <ФРАЗА>
+# d-i partman-crypto/passphrase-again password <ФРАЗА>
+d-i partman-crypto/weak_passphrase boolean true
+d-i partman-crypto/confirm boolean true
+d-i partman-auto-crypto/erase_disks boolean false
+
+### 7. Источник пакетов и обновления (Trixie) ###
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+d-i mirror/suite string trixie
+d-i apt-setup/services-select multiselect security, updates
+d-i apt-setup/security_host string security.debian.org
+d-i apt-setup/non-free-firmware boolean true
+d-i apt-setup/non-free boolean true
+d-i apt-setup/contrib boolean true
+
+### 8. Базовый набор пакетов ###
+d-i tasksel/first multiselect standard, ssh-server
+d-i pkgsel/include string sudo curl wget gnupg gnome-core network-manager
+
+### 9. Ядро (стандартное для Debian) ###
+d-i base-installer/kernel/image string linux-image-amd64
+d-i pkgsel/include string linux-image-amd64 linux-headers-amd64
+
+### 10. Завершение работы ###
+d-i debian-installer/exit/poweroff boolean true
+
+### 11. late_command: NM fix, шрифты Microsoft, unrar ###
+d-i preseed/late_command string \
+  in-target apt-get update; \
+  # --- NetworkManager fix ---
+  # Удаляем из /etc/network/interfaces записи о физических Ethernet и Wi-Fi интерфейсах,
+  # чтобы ими управлял только NetworkManager (ifupdown оставляет лишь loopback).
+  in-target sh -c 'awk '' \
+    /^[[:space:]]*#/ { next } \
+    /^[[:space:]]*$/ { next } \
+    { \
+      if ($1 == "auto" || $1 == "allow-hotplug") { \
+        if ($2 ~ /^(eth|en|wl|wlan|wlp|wlan[0-9]|en[opsx])/) next; \
+        print; next; \
+      } \
+      if ($1 == "iface") { \
+        if ($2 ~ /^(eth|en|wl|wlan|wlp|wlan[0-9]|en[opsx])/) next; \
+        print; next; \
+      } \
+      print; \
+    }'' /etc/network/interfaces > /etc/network/interfaces.new && \
+    mv /etc/network/interfaces.new /etc/network/interfaces'; \
+  # --- Шрифты Microsoft и unrar ---
+  echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | in-target debconf-set-selections; \
+  in-target apt-get install -y ttf-mscorefonts-installer unrar; \
+  in-target apt-get install -y firmware-linux firmware-linux-nonfree || true
