@@ -18,9 +18,6 @@ autoinstall:
     install: true
   drivers:
     install: true
-  packages:
-    - ansible
-    - git
   kernel:
     flavor: hwe
   kernel-crash-dumps:
