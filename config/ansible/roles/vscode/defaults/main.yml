@@ -1,9 +1,0 @@
----
-# Переменные по умолчанию для roli vscode (Visual Studio Code).
-# Значения могут быть переопределены из config/setup.env или командной строкой -e
-apt_arch: "{{ lookup('env', 'APT_ARCH') | default('{{ 'amd64' if ansible_architecture == 'x86_64' else ('arm64' if ansible_architecture == 'aarch64' else 'armhf') }}') }"
-vscode_extensions:
-  - vscodejava.vscode-java-pack      # Official Java development pack (includes Java debugger, language support, tester)
-  - vscode.node-glyph                 # Node.js support basic TS/JS
-  - dbaeumer.vscode-eslint            # ESLint for basic JS/TS (Vaadin frontend)
-  - esbenp.prettier-code              # Prettier for JS/TS formatting

@@ -59,7 +59,6 @@ After setup completes:
 2. Verify installations:
    ```bash
    docker --version
-   code --version
    node --version
    java -version
    ```

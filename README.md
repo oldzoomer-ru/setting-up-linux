@@ -36,7 +36,6 @@ All configurable variables are in `config/setup.cfg`. Override via environment v
 - `desktop` - GNOME settings, Flatpak, ZRAM
 - `docker` - Docker CE installation and group management
 - `extras` - Development tools (build-essential, jq)
-- `vscode` - Visual Studio Code installation
 - `java` - OpenJDK installation
 - `nodejs` - Node.js setup from NodeSource
 - `gigabyte` - Gigabyte laptop specific quirks
