@@ -1,11 +1,10 @@
 ---
 # Переменные по умолчанию для roli extras (дополнительные инструменты).
 # Значения могут быть переопределены из config/setup.env или командной строкой -e
+# uv устанавливается через пакетный менеджер системы (apt/dnf), см. roles/extras/tasks/main.yml
 dev_packages_debian:
   - build-essential
   - jq
-  - uv
 dev_packages_rhel:
   - "@development-tools"
   - jq
-  - uv

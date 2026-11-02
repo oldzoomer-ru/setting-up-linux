@@ -48,9 +48,9 @@
 
 
 
-- name: Install cline globally via npm
-  ansible.builtin.command: npm install -g cline
-  changed_when: false
-  environment:
-    PATH: "{{ ansible_env.PATH }}:/home/{{ dev_user }}/.local/bin"
+- name: Install cline globally via npm (community.general.npm)
+  community.general.npm:
+    name: cline
+    global: true
+    state: present
   when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"

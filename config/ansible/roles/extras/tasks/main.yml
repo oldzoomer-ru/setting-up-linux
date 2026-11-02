@@ -12,3 +12,8 @@
     name: "{{ dev_packages_rhel }}"
     state: present
   when: ansible_os_family == "RedHat"
+
+- name: Install uv Python package manager
+  community.general.uv_python:
+    state: present
+  when: ansible_os_family == "Debian" or ansible_os_family == "RedHat"
