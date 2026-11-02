@@ -1,5 +1,0 @@
----
-# Всё реализовано на модулях ansible.core (ansible.builtin).
-# Внешние роли и коллекции НЕ требуются.
-roles: []
-collections: []
